@@ -13,6 +13,7 @@ It supports data collection from smart meters, inverters, and battery systems vi
 - JSON data push to KEP (with 5 and 15-minute aggregation)
 - Modular design for future extensions (CAN FD, machine learning, UI dashboard)
 - HTTPS-ready, JWT authentication (planned)
+- Role-based access control with Admin, Operator and ReadOnly roles
 - ARM64-compatible for RevPi Connect 5
 
 ### 📁 Project Structure
@@ -66,6 +67,7 @@ A rendszer RS485-ön keresztül gyűjt adatokat okosmérőkből, inverterekből 
 - JSON adatküldés KEP felé (5 és 15 perces aggregációval)
 - Moduláris kialakítás a jövőbeli bővítésekhez (CAN FD, gépi tanulás, UI dashboard)
 - HTTPS támogatás, JWT hitelesítés (tervben)
+- Szerepkör-alapú jogosultságkezelés (Admin, Operátor, Olvasó)
 - ARM64-kompatibilis a RevPi Connect 5 platformhoz
 
 ### 📁 Projektstruktúra
