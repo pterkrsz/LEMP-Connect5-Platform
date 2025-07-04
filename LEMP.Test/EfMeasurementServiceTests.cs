@@ -26,6 +26,7 @@ public class EfMeasurementServiceTests
             Values = new() { ["v"] = 1 }
         });
 
+
         var all = await service.GetAllAsync();
         Assert.That(all.Count(), Is.EqualTo(1));
     }
