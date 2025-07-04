@@ -11,4 +11,10 @@ public class MeasurementDbContext : DbContext
     }
 
     public DbSet<Measurement> Measurements => Set<Measurement>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Measurement>().Ignore(m => m.Values);
+        base.OnModelCreating(modelBuilder);
+    }
 }
