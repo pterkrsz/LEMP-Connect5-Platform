@@ -5,8 +5,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) =>
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .WriteTo.Console()
+        .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -36,6 +43,8 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
