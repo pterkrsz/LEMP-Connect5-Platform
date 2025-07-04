@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using LEMP.Application.Constants;
 
 namespace LEMP.Api.Controllers;
 
@@ -20,24 +21,38 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginDto dto)
     {
-        if (dto.Username == "admin" && dto.Password == "password")
+        string? role = dto.Username switch
         {
-            var token = GenerateToken();
-            return Ok(new { token });
+            "admin" when dto.Password == "password" => Roles.Admin,
+            "operator" when dto.Password == "password" => Roles.Operator,
+            "reader" when dto.Password == "password" => Roles.ReadOnly,
+            _ => null
+        };
+
+        if (role is null)
+        {
+            return Unauthorized();
         }
 
-        return Unauthorized();
+        var token = GenerateToken(dto.Username, role);
+        return Ok(new { token });
     }
 
-    private string GenerateToken()
+    private string GenerateToken(string username, string role)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, username),
+            new Claim(ClaimTypes.Role, role)
+        };
+
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Issuer"],
-            claims: new[] { new Claim(ClaimTypes.Name, "admin") },
+            claims: claims,
             expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: creds);
 
