@@ -1,8 +1,8 @@
+using LEMP.Application.Constants;
 using LEMP.Application.DTOs;
 using LEMP.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using LEMP.Application.Constants;
 
 namespace LEMP.Api.Controllers;
 
