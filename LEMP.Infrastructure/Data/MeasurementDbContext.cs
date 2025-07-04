@@ -18,7 +18,7 @@ public class MeasurementDbContext : DbContext
     {
         var converter = new ValueConverter<Dictionary<string, double>, string>(
             v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-            v => JsonSerializer.Deserialize<Dictionary<string, double>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, double>());
+            v => JsonSerializer.Deserialize<Dictionary<string, double>>(v) ?? new());
 
         modelBuilder
             .Entity<Measurement>()
