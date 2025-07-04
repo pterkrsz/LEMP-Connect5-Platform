@@ -1,5 +1,7 @@
 using LEMP.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using System.Text.Json;
 
 namespace LEMP.Infrastructure.Data;
 
@@ -14,7 +16,15 @@ public class MeasurementDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Measurement>().Ignore(m => m.Values);
+        var converter = new ValueConverter<Dictionary<string, double>, string>(
+            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+            v => JsonSerializer.Deserialize<Dictionary<string, double>>(v) ?? new());
+
+        modelBuilder
+            .Entity<Measurement>()
+            .Property(m => m.Values)
+            .HasConversion(converter);
+
         base.OnModelCreating(modelBuilder);
     }
 }
