@@ -31,6 +31,6 @@ public class MeasurementServiceTests
         }
 
         var all = await service.GetAllAsync();
-        Assert.AreEqual(2, all.Count());
+        Assert.That(all.Count(), Is.EqualTo(2));
     }
 }
