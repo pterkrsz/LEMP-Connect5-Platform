@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Text.Json;
 
+
 namespace LEMP.Infrastructure.Data;
 
 public class MeasurementDbContext : DbContext
