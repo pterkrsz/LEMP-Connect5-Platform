@@ -14,6 +14,7 @@ public class MeasurementDbContext : DbContext
     }
 
     public DbSet<Measurement> Measurements => Set<Measurement>();
+    public DbSet<TwoFactorSecret> TwoFactorSecrets => Set<TwoFactorSecret>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

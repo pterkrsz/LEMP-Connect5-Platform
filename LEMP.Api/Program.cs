@@ -22,6 +22,7 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddDbContext<MeasurementDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 builder.Services.AddScoped<IMeasurementService, EfMeasurementService>();
+builder.Services.AddScoped<ITwoFactorService, EfTwoFactorService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

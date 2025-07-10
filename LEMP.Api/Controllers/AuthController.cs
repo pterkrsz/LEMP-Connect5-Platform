@@ -1,4 +1,6 @@
 using LEMP.Application.Constants;
+using LEMP.Application.Interfaces;
+using LEMP.Application.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -12,14 +14,16 @@ namespace LEMP.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _config;
+    private readonly ITwoFactorService _twoFactor;
 
-    public AuthController(IConfiguration config)
+    public AuthController(IConfiguration config, ITwoFactorService twoFactor)
     {
         _config = config;
+        _twoFactor = twoFactor;
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginDto dto)
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         string? role = dto.Username switch
         {
@@ -32,6 +36,15 @@ public class AuthController : ControllerBase
         if (role is null)
         {
             return Unauthorized();
+        }
+
+        var secret = await _twoFactor.GetSecretAsync(dto.Username);
+        if (secret is not null)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Code) || !TotpGenerator.Verify(secret, dto.Code))
+            {
+                return Unauthorized();
+            }
         }
 
         var token = GenerateToken(dto.Username, role);
@@ -59,5 +72,24 @@ public class AuthController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    public record LoginDto(string Username, string Password);
+    [HttpPost("2fa")]
+    public async Task<IActionResult> Verify2Fa([FromBody] TwoFaDto dto)
+    {
+        var secret = await _twoFactor.GetSecretAsync(dto.Username);
+        if (secret is null)
+        {
+            return BadRequest();
+        }
+
+        if (!TotpGenerator.Verify(secret, dto.Code))
+        {
+            return Unauthorized();
+        }
+
+        return Ok();
+    }
+
+    public record LoginDto(string Username, string Password, string? Code);
+
+    public record TwoFaDto(string Username, string Code);
 }

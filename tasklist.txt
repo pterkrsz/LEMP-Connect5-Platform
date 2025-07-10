@@ -1,7 +1,7 @@
 LEMP és KEP interfész követelmények – Roadmap feladatlista
 Szoftveres elvárások
 Fejlett jogosultságkezelő rendszer kialakítása: A LEMP szoftverben olyan jogosultságkezelést kell megvalósítani, amely támogatja a felhasználói adathozzáférések szerepkörök szerinti korlátozását, és lehetőséget ad a felhasználói körök (szerepkörök) későbbi bővítésére.
-Kéttényezős felhasználói hitelesítés (2FA): Biztosítani kell, hogy az arra kijelölt felhasználók csak kétfaktoros hitelesítéssel (egy authentikációs mobilalkalmazás segítségével) tudjanak bejelentkezni a rendszerbe, növelve ezzel a hozzáférés biztonságát.
+Kéttényezős felhasználói hitelesítés (2FA): Biztosítani kell, hogy az arra kijelölt felhasználók csak kétfaktoros hitelesítéssel (egy authentikációs mobilalkalmazás segítségével) tudjanak bejelentkezni a rendszerbe, növelve ezzel a hozzáférés biztonságát. – KÉSZ
 Titkosított adatbázis használata: A LEMP minden bizalmas és érzékeny adatot titkosított adatbázisban tároljon, hogy illetéktelenek ne férhessenek hozzá a tárolt információkhoz közvetlenül.
 Naplózás, mentés és védelem a törvényi előírások szerint: A rendszerben ki kell építeni a jogszabályoknak megfelelő naplózási, adatmentési és védelmi funkciókat. Minden releváns eseményt naplózni kell, rendszeres biztonsági mentést kell végezni, és gondoskodni kell a naplók védelméről a 2013. évi L. törvény 4. besorolási osztályának megfelelően.
 KEP-kompatibilis törzsadat-kezelés: A LEMP-nek kezelnie kell a KEP-LEMP interfészen keresztül átadandó valamennyi törzsadatot a dokumentáció 7. pontjában meghatározott hierarchikus struktúrában. Ez biztosítja, hogy az intézmények alapadatai (pl. telephelyek, eszközök metaadatai) a KEP által elvárt formában álljanak rendelkezésre.
