@@ -1,0 +1,41 @@
+Below is the **tasklist** from `tasklist.txt` with checkboxes indicating whether the repository already implements the requirement:
+
+- [x] **Fejlett jogosultságkezelő rendszer kialakítása** – szerepkörök (`Roles`) és jogosultságok megtalálhatók a kódban
+- [x] **Kéttényezős felhasználói hitelesítés (2FA)** – megvalósítva a `TotpGenerator` segédosztállyal
+- [ ] **Titkosított adatbázis használata** – erre utaló implementáció nem látható
+- [ ] **Naplózás, mentés és védelem a törvényi előírások szerint** – csak alap Serilog naplózás található
+- [ ] **KEP‑kompatibilis törzsadat-kezelés** – nincs megvalósítva
+- [ ] **Almérős fogyasztási adatok tárolása 15/5 perces bontásban** – nincs nyoma
+- [ ] **IoT szenzoradatok kezelése** – hiányzik
+- [ ] **Bővíthető IoT eszköz‑integrációs modul** – hiányzik
+- [ ] **Kimeneti vezérlő API modul** – hiányzik
+- [ ] **Gépi tanuláson alapuló analitika és menetrend-tervezés** – hiányzik
+- [ ] **Riportkészítő modul** – hiányzik
+- [ ] **Grafikus adatelemző felület** – hiányzik
+- [ ] **Helyi telepítésű platform és infrastruktúra** – kódban nem szerepel
+- [ ] **Mérőeszközök és szenzorok integrálása** – hiányzik
+- [ ] **REST API és titkosított adatkapcsolat (TLS)** – részben támogatott, de tanúsítványkezelés nem látható
+- [ ] **Almérő törzsadat interfész (#1)** – hiányzik
+- [ ] **Almérők fogyasztási adat interfész (#2)** – hiányzik
+- [ ] **IoT szenzor törzsadat interfész (#3)** – hiányzik
+- [ ] **IoT szenzor mérési adat interfész (#4)** – hiányzik
+- [ ] **Közintézményi törzsadat interfész (#5)** – hiányzik
+- [ ] **Inverter eszközök vezérlése (#6)** – hiányzik
+- [ ] **Ki-/bekapcsolható eszközök vezérlése (#7)** – hiányzik
+- [ ] **Folyamatos és biztonságos KEP–LEMP kapcsolat** – nem szerepel
+- [ ] **Adatátvitel ütemezett lekérdezésekkel (pull modell)** – nincs nyoma
+- [ ] **Magyarországi felhő infrastruktúra használata** – nem látható
+- [ ] **IoT eszközök integrációjának támogatása** – hiányzik
+- [ ] **Vezérlési utasítások gyors végrehajtása** – hiányzik
+- [ ] **Szabványos hitelesítési protokollok (OAuth2/OpenID Connect)** – nincs implementálva
+- [ ] **API kulcsok és token alapú autentikáció** – csak JWT van, API‑kulcsok nincsenek
+- [x] **Szerepkör‑alapú hozzáférés‑szabályozás (RBAC)** – megvalósítva a `Roles` használatával
+- [x] **Titkosított kommunikáció (HTTPS/TLS)** – `UseHttpsRedirection` és JWT beállítások szerepelnek
+- [ ] **API hozzáférés korlátozása és integritásvédelem (CORS, aláírás, időbélyeg)** – hiányzik
+- [ ] **Túlterhelés elleni védelem és IP-szűrés** – hiányzik
+- [ ] **Érzékeny adatok védelme és naplózás** – csak a 2FA titkosítása szerepel
+- [ ] **API verziókezelés** – nincs
+- [ ] **Hibakezelés és HTTP státuszkódok használata** – csak alap HTTP kódok
+- [ ] **Biztonsági best-practice-ek követése** – nincs nyoma
+- [x] **Hatékony adatformátum használata (JSON)** – a projekt JSON‑t használ
+- [x] **Réteges architektúra és skálázhatóság** – a projekt mappastruktúrája ennek megfelelő
