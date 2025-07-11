@@ -10,10 +10,30 @@ public class EfTwoFactorServiceTests
 {
     private static MeasurementDbContext CreateContext()
     {
+        var conn = Environment.GetEnvironmentVariable("TEST_DB_CONN") ??
+                   "Host=localhost;Port=5432;Database=testdb;Username=testuser;Password=testpass";
         var options = new DbContextOptionsBuilder<MeasurementDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseNpgsql(conn)
             .Options;
-        return new MeasurementDbContext(options);
+        var ctx = new MeasurementDbContext(options);
+        EnsureSchema(ctx);
+        ctx.Database.ExecuteSqlRaw("TRUNCATE TABLE \"Measurements\" RESTART IDENTITY; TRUNCATE TABLE \"TwoFactorSecrets\" RESTART IDENTITY;");
+        return ctx;
+    }
+
+    private static void EnsureSchema(MeasurementDbContext context)
+    {
+        const string sql = @"CREATE TABLE IF NOT EXISTS \"Measurements\" (
+                                \"Id\" SERIAL PRIMARY KEY,
+                                \"SourceType\" TEXT NOT NULL,
+                                \"SourceId\" TEXT NOT NULL,
+                                \"Timestamp\" TIMESTAMPTZ NOT NULL,
+                                \"Values\" TEXT NOT NULL);
+                            CREATE TABLE IF NOT EXISTS \"TwoFactorSecrets\" (
+                                \"Id\" SERIAL PRIMARY KEY,
+                                \"Username\" TEXT NOT NULL,
+                                \"EncryptedSecret\" TEXT NOT NULL);";
+        context.Database.ExecuteSqlRaw(sql);
     }
 
     private static IConfiguration CreateConfig()
