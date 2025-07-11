@@ -23,16 +23,16 @@ public class EfTwoFactorServiceTests
 
     private static void EnsureSchema(MeasurementDbContext context)
     {
-        const string sql = @"CREATE TABLE IF NOT EXISTS \"Measurements\" (
-                                \"Id\" SERIAL PRIMARY KEY,
-                                \"SourceType\" TEXT NOT NULL,
-                                \"SourceId\" TEXT NOT NULL,
-                                \"Timestamp\" TIMESTAMPTZ NOT NULL,
-                                \"Values\" TEXT NOT NULL);
-                            CREATE TABLE IF NOT EXISTS \"TwoFactorSecrets\" (
-                                \"Id\" SERIAL PRIMARY KEY,
-                                \"Username\" TEXT NOT NULL,
-                                \"EncryptedSecret\" TEXT NOT NULL);";
+        const string sql = @"CREATE TABLE IF NOT EXISTS ""Measurements"" (
+                                ""Id"" SERIAL PRIMARY KEY,
+                                ""SourceType"" TEXT NOT NULL,
+                                ""SourceId"" TEXT NOT NULL,
+                                ""Timestamp"" TIMESTAMPTZ NOT NULL,
+                                ""Values"" TEXT NOT NULL);
+                            CREATE TABLE IF NOT EXISTS ""TwoFactorSecrets"" (
+                                ""Id"" SERIAL PRIMARY KEY,
+                                ""Username"" TEXT NOT NULL,
+                                ""EncryptedSecret"" TEXT NOT NULL);";
         context.Database.ExecuteSqlRaw(sql);
     }
 
