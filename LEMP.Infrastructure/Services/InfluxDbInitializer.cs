@@ -1,12 +1,16 @@
+
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+
 
 namespace LEMP.Infrastructure.Services;
 
 public class InfluxDbInitializer
 {
+
     private readonly HttpClient _client;
+
 
     private const string Database = "local_system";
     private const string Schema = "autogen";
@@ -56,21 +60,26 @@ public class InfluxDbInitializer
   meta_last_update_time TIMESTAMP
 )";
 
+
     public InfluxDbInitializer(HttpClient client)
     {
         _client = client;
+
     }
 
     public async Task InitializeAsync()
     {
+
         if (!await TableExistsAsync())
         {
             await ExecuteAsync(CreateTableSql);
+
         }
     }
 
     private async Task<bool> TableExistsAsync()
     {
+
         const string sql = "SELECT table_name FROM information_schema.tables WHERE table_catalog=$db AND table_schema=$schema AND table_name=$table";
         var payload = new
         {
@@ -98,5 +107,6 @@ public class InfluxDbInitializer
         var response = await _client.PostAsync("/api/v2/query?org=local_org", content);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync();
+
     }
 }
