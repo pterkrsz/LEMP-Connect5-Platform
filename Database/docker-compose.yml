@@ -1,0 +1,56 @@
+services:
+  influxdb3-core:
+    container_name: influxdb3-core
+    image: influxdb:3-core
+    ports:
+      - 8181:8181
+    command:
+      - influxdb3
+      - serve
+      - --node-id=${INFLUXDB_NODE_ID}
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3
+    volumes:
+      - influxdb_data:/var/lib/influxdb3
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer ${INFLUXDB_TOKEN}' http://localhost:8181/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  telegraf:
+    container_name: telegraf
+    image: telegraf
+    depends_on:
+      influxdb3-core:
+        condition: service_healthy
+    # Optionally, you can switch to depend on influxdb3-enterprise if using that
+    environment:
+      - INFLUXDB_HOST=${INFLUXDB_HOST}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - TELEGRAF_COLLECTION_INTERVAL=${TELEGRAF_COLLECTION_INTERVAL}
+      - HOSTNAME=telegraf
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    depends_on:
+      - influxdb3-core
+    # Or switch to influxdb3-enterprise as needed
+    restart: unless-stopped
+
+volumes:
+  influxdb_data:
+  grafana_data:
