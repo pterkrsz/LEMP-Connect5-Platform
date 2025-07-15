@@ -37,9 +37,11 @@ public class InfluxTwoFactorServiceTests
         public async IAsyncEnumerable<PointDataValues> QueryPoints(string query, QueryType? queryType = null, string? database = null, Dictionary<string, object>? namedParameters = null, Dictionary<string, string>? headers = null)
         {
             var username = namedParameters?["username"]?.ToString();
+
             for (int i = Stored.Count - 1; i >= 0; i--)
             {
                 var val = Stored[i];
+
                 if (val.GetTag("username") == username)
                 {
                     yield return val;
@@ -68,6 +70,7 @@ public class InfluxTwoFactorServiceTests
         Assert.That(secret, Is.EqualTo("SECRET"));
     }
 
+
     [Test]
     public async Task GetSecretReturnsNullWhenNoneSaved()
     {
@@ -91,4 +94,5 @@ public class InfluxTwoFactorServiceTests
         var secret = await service.GetSecretAsync("user1");
         Assert.That(secret, Is.EqualTo("NEW"));
     }
+
 }

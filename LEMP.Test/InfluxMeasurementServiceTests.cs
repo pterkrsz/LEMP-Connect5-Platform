@@ -3,7 +3,9 @@ using InfluxDB3.Client;
 using InfluxDB3.Client.Write;
 using InfluxDB3.Client.Query;
 using Apache.Arrow;
+
 using System.Linq;
+
 using LEMP.Application.DTOs;
 using LEMP.Infrastructure.Services;
 using NUnit.Framework;
@@ -71,6 +73,7 @@ public class InfluxMeasurementServiceTests
         Assert.That(all.Single().Values["v"], Is.EqualTo(1.0));
     }
 
+
     [Test]
     public async Task GetAllReturnsEmptyWhenNoMeasurements()
     {
@@ -111,4 +114,5 @@ public class InfluxMeasurementServiceTests
         Assert.That(all.Any(m => m.SourceId == "1" && m.Values["v"] == 1.0));
         Assert.That(all.Any(m => m.SourceId == "2" && m.Values["v"] == 2.0));
     }
+
 }
