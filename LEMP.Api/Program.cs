@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using InfluxDB3.Client;
 using Serilog;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,7 +64,15 @@ app.UseAuthorization();
 using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
-    await initializer.InitializeAsync();
+    try
+    {
+        await initializer.InitializeAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Failed to initialize InfluxDB");
+    }
 }
 
 app.MapControllers();
