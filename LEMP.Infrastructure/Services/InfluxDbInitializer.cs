@@ -65,10 +65,19 @@ public class InfluxDbInitializer
 
     public async Task InitializeAsync()
     {
-        if (!await TableExistsAsync())
+
+        try
         {
-            _logger.LogInformation("Table {Table} not found. Creating...", $"{Database}.{Schema}.{Table}");
-            await ExecuteNonQueryAsync(CreateTableSql);
+            if (!await TableExistsAsync())
+            {
+                _logger.LogInformation("Table {Table} not found. Creating...", $"{Database}.{Schema}.{Table}");
+                await ExecuteNonQueryAsync(CreateTableSql);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error initializing InfluxDB");
+
         }
     }
 
