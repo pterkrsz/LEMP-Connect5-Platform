@@ -65,6 +65,7 @@ public class InfluxDbInitializer
 
     public async Task InitializeAsync()
     {
+
         try
         {
             if (!await TableExistsAsync())
@@ -76,6 +77,7 @@ public class InfluxDbInitializer
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error initializing InfluxDB");
+
         }
     }
 

@@ -64,6 +64,7 @@ app.UseAuthorization();
 using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
+
     try
     {
         await initializer.InitializeAsync();
@@ -73,6 +74,7 @@ using (var scope = app.Services.CreateScope())
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Failed to initialize InfluxDB");
     }
+
 }
 
 app.MapControllers();
