@@ -3,6 +3,8 @@ using LEMP.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using InfluxDB3.Client;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using Serilog;
 using System.Text;
 
@@ -28,6 +30,13 @@ var influxBucket = influxSection["Bucket"] ?? string.Empty;
 
 
 builder.Services.AddSingleton<IInfluxDBClient>(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", token: influxToken, database: influxBucket));
+builder.Services.AddSingleton(_ =>
+{
+    var client = new HttpClient { BaseAddress = new Uri($"http://{influxHost}:{influxPort}") };
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", influxToken);
+    return client;
+});
+builder.Services.AddSingleton<InfluxDbInitializer>();
 builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
 builder.Services.AddScoped<ITwoFactorService, InfluxTwoFactorService>();
 
@@ -58,6 +67,12 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
+using (var scope = app.Services.CreateScope())
+{
+    var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
+    await initializer.InitializeAsync();
+}
 
 app.MapControllers();
 
