@@ -8,7 +8,7 @@ It supports data collection from smart meters, inverters, and battery systems vi
 ### 🔧 Key Features
 
 - .NET 8 Web API with clean architecture
-- SQLite/PostgreSQL-based data storage
+- InfluxDB 3 data storage
 - RS485/Modbus sensor integration
 - JSON data push to KEP (with 5 and 15-minute aggregation)
 - Modular design for future extensions (CAN FD, machine learning, UI dashboard)
@@ -32,7 +32,7 @@ LEMP-Connect5-Platform/
 - RevPi Connect 5 (ARM64)
 - Linux (Ubuntu 22.04 or RevPi OS)
 - .NET 8 SDK + Runtime
-- SQLite or PostgreSQL
+- InfluxDB 3
 - RS485 interface (built-in or USB converter)
 
 ### 🚀 Getting Started
@@ -41,6 +41,10 @@ git clone https://github.com/<your-username>/LEMP-Connect5-Platform.git
 cd LEMP-Connect5-Platform
 dotnet build
 dotnet run --project LEMP.Api
+
+A projekt az InfluxDB beállításait az appsettings fájlból olvassa be, így a `.env` fájlhoz nem kell hozzányúlni.
+
+The application automatically reads InfluxDB settings from the appsettings files, so the `.env` file does not need manual editing.
 
 Access the API at: https://localhost:5001/swagger
 
@@ -62,7 +66,7 @@ A rendszer RS485-ön keresztül gyűjt adatokat okosmérőkből, inverterekből 
 ### 🔧 Fő funkciók
 
 - .NET 8 Web API, tiszta architektúrával
-- SQLite/PostgreSQL alapú adattárolás
+- InfluxDB 3 alapú adattárolás
 - RS485/Modbus eszköz integráció
 - JSON adatküldés KEP felé (5 és 15 perces aggregációval)
 - Moduláris kialakítás a jövőbeli bővítésekhez (CAN FD, gépi tanulás, UI dashboard)
@@ -85,7 +89,7 @@ LEMP-Connect5-Platform/
 - RevPi Connect 5 (ARM64)
 - Linux (Ubuntu 22.04 vagy RevPi OS)
 - .NET 8 SDK + Runtime
-- SQLite vagy PostgreSQL
+- InfluxDB 3
 - RS485 interfész (beépített vagy USB-s)
 
 ### 🚀 Első lépések

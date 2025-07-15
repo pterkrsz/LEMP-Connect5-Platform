@@ -1,9 +1,8 @@
 ﻿using LEMP.Application.Interfaces;
-using LEMP.Infrastructure.Data;
 using LEMP.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using InfluxDB3.Client;
 using Serilog;
 using System.Text;
 
@@ -20,9 +19,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthorization();
 
-builder.Services.AddDbContext<MeasurementDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
-builder.Services.AddScoped<IMeasurementService, EfMeasurementService>();
-builder.Services.AddScoped<ITwoFactorService, EfTwoFactorService>();
+var influxSection = builder.Configuration.GetSection("InfluxDB");
+var influxHost = influxSection["Host"] ?? "localhost";
+var influxPort = influxSection["Port"] ?? "8181";
+var influxToken = influxSection["Token"] ?? string.Empty;
+var influxBucket = influxSection["Bucket"] ?? string.Empty;
+
+builder.Services.AddSingleton<IInfluxDBClient>(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", token: influxToken, database: influxBucket));
+builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
+builder.Services.AddScoped<ITwoFactorService, InfluxTwoFactorService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
