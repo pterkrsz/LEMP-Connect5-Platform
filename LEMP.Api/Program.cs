@@ -3,6 +3,8 @@ using LEMP.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using InfluxDB3.Client;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using Serilog;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -29,6 +31,14 @@ var influxBucket = influxSection["Bucket"] ?? string.Empty;
 
 
 builder.Services.AddSingleton<IInfluxDBClient>(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", token: influxToken, database: influxBucket));
+
+builder.Services.AddSingleton(_ =>
+{
+    var client = new HttpClient { BaseAddress = new Uri($"http://{influxHost}:{influxPort}") };
+    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", influxToken);
+    return client;
+});
+
 builder.Services.AddSingleton<InfluxDbInitializer>();
 builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
 builder.Services.AddScoped<ITwoFactorService, InfluxTwoFactorService>();
@@ -65,15 +75,7 @@ using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
 
-    try
-    {
-        await initializer.InitializeAsync();
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Failed to initialize InfluxDB");
-    }
+    await initializer.InitializeAsync();
 
 }
 

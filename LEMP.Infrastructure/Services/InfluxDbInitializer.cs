@@ -1,13 +1,16 @@
-using InfluxDB3.Client;
-using InfluxDB3.Client.Query;
-using Microsoft.Extensions.Logging;
+
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+
 
 namespace LEMP.Infrastructure.Services;
 
 public class InfluxDbInitializer
 {
-    private readonly IInfluxDBClient _client;
-    private readonly ILogger<InfluxDbInitializer> _logger;
+
+    private readonly HttpClient _client;
+
 
     private const string Database = "local_system";
     private const string Schema = "autogen";
@@ -57,52 +60,53 @@ public class InfluxDbInitializer
   meta_last_update_time TIMESTAMP
 )";
 
-    public InfluxDbInitializer(IInfluxDBClient client, ILogger<InfluxDbInitializer> logger)
+
+    public InfluxDbInitializer(HttpClient client)
     {
         _client = client;
-        _logger = logger;
+
     }
 
     public async Task InitializeAsync()
     {
 
-        try
+        if (!await TableExistsAsync())
         {
-            if (!await TableExistsAsync())
-            {
-                _logger.LogInformation("Table {Table} not found. Creating...", $"{Database}.{Schema}.{Table}");
-                await ExecuteNonQueryAsync(CreateTableSql);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error initializing InfluxDB");
+            await ExecuteAsync(CreateTableSql);
 
         }
     }
 
     private async Task<bool> TableExistsAsync()
     {
-        const string sql = @"SELECT table_name FROM information_schema.tables WHERE table_catalog=$db AND table_schema=$schema AND table_name=$table";
 
-        await foreach (var _ in _client.Query(sql, QueryType.SQL, namedParameters: new Dictionary<string, object>
+        const string sql = "SELECT table_name FROM information_schema.tables WHERE table_catalog=$db AND table_schema=$schema AND table_name=$table";
+        var payload = new
         {
-            ["db"] = Database,
-            ["schema"] = Schema,
-            ["table"] = Table
-        }))
-        {
-            return true;
-        }
-
-        return false;
+            query = sql,
+            parameters = new Dictionary<string, object>
+            {
+                ["db"] = Database,
+                ["schema"] = Schema,
+                ["table"] = Table
+            }
+        };
+        var response = await SendQueryAsync(payload);
+        return response.Contains(Table);
     }
 
-    private async Task ExecuteNonQueryAsync(string sql)
+    private async Task ExecuteAsync(string sql)
     {
-        await foreach (var _ in _client.Query(sql, QueryType.SQL))
-        {
-            // intentionally empty
-        }
+        var payload = new { query = sql };
+        await SendQueryAsync(payload);
+    }
+
+    private async Task<string> SendQueryAsync(object payload)
+    {
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        var response = await _client.PostAsync("/api/v2/query?org=local_org", content);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
+
     }
 }
