@@ -42,9 +42,11 @@ cd LEMP-Connect5-Platform
 dotnet build
 dotnet run --project LEMP.Api
 
-A projekt az InfluxDB beállításait környezeti változókból olvassa ki, ezért a `.env` fájlhoz nem kell hozzányúlni.
 
-The application automatically reads InfluxDB settings from environment variables, so the `.env` file does not need manual editing.
+A projekt az InfluxDB beállításait az appsettings fájlból olvassa be, így a `.env` fájlhoz nem kell hozzányúlni.
+
+The application automatically reads InfluxDB settings from the appsettings files, so the `.env` file does not need manual editing.
+
 
 Access the API at: https://localhost:5001/swagger
 

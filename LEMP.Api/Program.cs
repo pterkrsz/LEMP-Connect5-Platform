@@ -19,10 +19,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthorization();
 
-var influxHost = Environment.GetEnvironmentVariable("INFLUXDB_HOST") ?? "localhost";
-var influxPort = Environment.GetEnvironmentVariable("INFLUXDB_HTTP_PORT") ?? "8181";
-var influxToken = Environment.GetEnvironmentVariable("INFLUXDB_TOKEN") ?? string.Empty;
-var influxBucket = Environment.GetEnvironmentVariable("INFLUXDB_BUCKET") ?? string.Empty;
+
+var influxSection = builder.Configuration.GetSection("InfluxDB");
+var influxHost = influxSection["Host"] ?? "localhost";
+var influxPort = influxSection["Port"] ?? "8181";
+var influxToken = influxSection["Token"] ?? string.Empty;
+var influxBucket = influxSection["Bucket"] ?? string.Empty;
+
 
 builder.Services.AddSingleton<IInfluxDBClient>(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", token: influxToken, database: influxBucket));
 builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
