@@ -1,23 +1,23 @@
-﻿using LEMP.Application.Interfaces;
+﻿// Program.cs
+using LEMP.Application.Interfaces;
 using LEMP.Infrastructure.Services;
 using InfluxDB3.Client;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
+// 1) Configuration betöltése
 var influxSection = builder.Configuration.GetSection("InfluxDB");
 var influxHost = influxSection["Host"] ?? "localhost";
 var influxPort = influxSection["Port"] ?? "8181";
-var influxToken = influxSection["Token"] ?? string.Empty;
-var influxBucket = influxSection["Bucket"] ?? string.Empty;
-var nodeId = influxSection["NodeId"] ?? string.Empty;
+var influxToken = influxSection["Token"] ?? "";
+var influxBucket = influxSection["Bucket"] ?? "";
+var influxOrg = influxSection["Org"] ?? "";
 
-// InfluxDB v3 client regisztrálása
+// 2) InfluxDBClient regisztrálása (Flight SQL használatra)
 builder.Services.AddSingleton(_ =>
     new InfluxDBClient(
         $"http://{influxHost}:{influxPort}",
@@ -26,18 +26,21 @@ builder.Services.AddSingleton(_ =>
     )
 );
 
-// Initializer regisztrálása
-builder.Services.AddSingleton(sp =>
+// 3) Initializer regisztrálása
+builder.Services.AddSingleton<InfluxDbInitializer>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<InfluxDbInitializer>>();
-    var endpoint = $"http://{influxHost}:{influxPort}";
-    var org = influxSection["Org"] ?? string.Empty;
-    var retention = TimeSpan.FromDays(30);
-
-    return new InfluxDbInitializer(endpoint, influxToken, org, influxBucket, retention, logger);
+    return new InfluxDbInitializer(
+        endpoint: $"http://{influxHost}:{influxPort}",
+        authToken: influxToken,
+        organization: influxOrg,
+        bucket: influxBucket,
+        retentionDays: 30,
+        logger: logger
+    );
 });
 
-// DataPoint service regisztrálása
+// 4) DataPointService regisztrálása
 builder.Services.AddScoped<IDataPointService>(sp =>
 {
     var client = sp.GetRequiredService<InfluxDBClient>();
@@ -45,35 +48,28 @@ builder.Services.AddScoped<IDataPointService>(sp =>
     return new InfluxDataPointService(client, log);
 });
 
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
-// === HEALTH CHECK az InfluxDB-hez ===
-using (var healthClient = new HttpClient { BaseAddress = new Uri($"http://{influxHost}:{influxPort}") })
-{
-    healthClient.DefaultRequestHeaders.Authorization =
-        new AuthenticationHeaderValue("Bearer", influxToken);
+// 5) Health-check
+using var http = new HttpClient { BaseAddress = new Uri($"http://{influxHost}:{influxPort}") };
+http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", influxToken);
+var health = await http.GetAsync("/health");
+health.EnsureSuccessStatusCode();
+Console.WriteLine($"[Init] InfluxDB health OK: {await health.Content.ReadAsStringAsync()}");
 
-    var healthResponse = await healthClient.GetAsync("/health");
-    if (!healthResponse.IsSuccessStatusCode)
-    {
-        var body = await healthResponse.Content.ReadAsStringAsync();
-        throw new Exception(
-            $"InfluxDB health check failed: {(int)healthResponse.StatusCode} {healthResponse.ReasonPhrase}\n{body}"
-        );
-    }
-    // opcionális log:
-    var info = await healthResponse.Content.ReadAsStringAsync();
-    Console.WriteLine($"InfluxDB health OK: {info}");
+// 6) Inicializálás Flight SQL-lel
+using (var scope = app.Services.CreateScope())
+{
+    var init = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
+    await init.EnsureDatabaseStructureAsync();
 }
 
-// Swagger, HTTPS, stb.
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();
-
- using var scope = app.Services.CreateScope();
- var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
- await initializer.EnsureDatabaseStructureAsync();
-
 app.MapControllers();
 app.Run();
