@@ -38,7 +38,7 @@ public class InfluxDbInitializer
         try
         {
             var createOrg = $"CREATE ORG IF NOT EXISTS \"{_organization}\"";
-            await foreach (var _ in sqlClient.Query(createOrg, QueryType.SQL)) { }
+            await foreach (var _ in sqlClient.Query(createOrg, QueryType.SQL, _bucket)) { }
         }
         catch (Exception ex)
         {
@@ -50,7 +50,7 @@ public class InfluxDbInitializer
         {
             var retentionDays = (int)_retentionPeriod.TotalDays;
             var createBucket = $"CREATE BUCKET IF NOT EXISTS \"{_bucket}\" RETENTION {retentionDays}d";
-            await foreach (var _ in sqlClient.Query(createBucket, QueryType.SQL)) { }
+            await foreach (var _ in sqlClient.Query(createBucket, QueryType.SQL, _bucket)) { }
         }
         catch (Exception ex)
         {
@@ -128,5 +128,11 @@ public class InfluxDbInitializer
 }
 
 // Example usage:
-// var initializer = new InfluxDbInitializer(endpointUrl, authToken, org, bucket, TimeSpan.FromDays(30), logger);
-// await initializer.EnsureDatabaseStructureAsync();
+// var init = new InfluxDbInitializer(
+//     "http://localhost:8181",
+//     "my-token",
+//     "local_org",
+//     "local_system",
+//     TimeSpan.FromDays(30),
+//     logger);
+// await init.EnsureDatabaseStructureAsync();
