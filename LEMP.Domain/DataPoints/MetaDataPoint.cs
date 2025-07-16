@@ -1,19 +1,20 @@
 using InfluxDB.Client.Core;
 using InfluxDB.Client.Api.Domain;
-using InfluxDB.Client.Writes;
 
 namespace LEMP.Domain.DataPoints;
 
 [Measurement("meta_data")]
 public class MetaDataPoint
 {
-    [Tag] public string BuildingId { get; set; } = string.Empty;
-    [Tag] public string DeviceId { get; set; } = string.Empty;
+    [Column("BuildingId", IsTag = true)]
+    public string BuildingId { get; set; } = string.Empty;
+    [Column("DeviceId", IsTag = true)]
+    public string DeviceId { get; set; } = string.Empty;
 
-    [Field("firmware_version")]   public string FirmwareVersion { get; set; } = string.Empty;
-    [Field("comm_status")]        public bool CommunicationStatus { get; set; }
-    [Field("last_update_time")]   public DateTime LastUpdateTime { get; set; }
+    [Column("firmware_version")] public string FirmwareVersion { get; set; } = string.Empty;
+    [Column("comm_status")] public bool CommunicationStatus { get; set; }
+    [Column("last_update_time")] public DateTime LastUpdateTime { get; set; }
 
-    [Timestamp(WritePrecision.Ns)]
+    [Column(IsTimestamp = true)]
     public DateTime Timestamp { get; set; }
 }

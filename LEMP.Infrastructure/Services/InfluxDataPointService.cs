@@ -1,5 +1,6 @@
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Writes;
 using LEMP.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -7,16 +8,16 @@ namespace LEMP.Infrastructure.Services;
 
 public class InfluxDataPointService : IDataPointService
 {
-    private readonly InfluxDBClient _client;
+    private readonly IWriteApiAsync _writeApi;
     private readonly string _bucket;
-    private readonly string _organization;
+    private readonly string _org;
     private readonly ILogger<InfluxDataPointService>? _logger;
 
-    public InfluxDataPointService(InfluxDBClient client, string bucket, string organization, ILogger<InfluxDataPointService>? logger = null)
+    public InfluxDataPointService(IWriteApiAsync writeApi, string bucket, string org, ILogger<InfluxDataPointService>? logger = null)
     {
-        _client = client;
+        _writeApi = writeApi;
         _bucket = bucket;
-        _organization = organization;
+        _org = org;
         _logger = logger;
     }
 
@@ -24,8 +25,7 @@ public class InfluxDataPointService : IDataPointService
     {
         try
         {
-            using var write = _client.GetWriteApiAsync();
-            await write.WriteMeasurementAsync(point, WritePrecision.Ns, _bucket, _organization);
+            await _writeApi.WriteMeasurementAsync(point, WritePrecision.Ns, _bucket, _org);
         }
         catch (Exception ex)
         {

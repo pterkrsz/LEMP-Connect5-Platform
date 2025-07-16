@@ -32,7 +32,8 @@ builder.Services.AddScoped<IDataPointService>(sp =>
 {
     var client = sp.GetRequiredService<InfluxDBClient>();
     var org = influxSection["Org"] ?? string.Empty;
-    return new InfluxDataPointService(client, influxBucket, org, sp.GetRequiredService<ILogger<InfluxDataPointService>>());
+    var write = client.GetWriteApiAsync();
+    return new InfluxDataPointService(write, influxBucket, org, sp.GetRequiredService<ILogger<InfluxDataPointService>>());
 });
 
 var app = builder.Build();
