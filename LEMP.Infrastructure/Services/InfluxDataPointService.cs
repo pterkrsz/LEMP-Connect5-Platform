@@ -1,3 +1,4 @@
+
 using InfluxDB3.Client;
 using InfluxDB3.Client.Write;
 using LEMP.Application.Interfaces;
@@ -8,6 +9,7 @@ namespace LEMP.Infrastructure.Services;
 
 public class InfluxDataPointService : IDataPointService
 {
+
     private readonly IInfluxDBClient _client;
     private readonly ILogger<InfluxDataPointService>? _logger;
 
@@ -19,6 +21,7 @@ public class InfluxDataPointService : IDataPointService
 
     public async Task WriteAsync<T>(T point)
     {
+
         if (point is null) throw new ArgumentNullException(nameof(point));
 
         PointData data = point switch
@@ -98,4 +101,5 @@ public class InfluxDataPointService : IDataPointService
             .SetField("comm_status", p.CommunicationStatus)
             .SetField("last_update_time", p.LastUpdateTime)
             .SetTimestamp(p.Timestamp);
+
 }

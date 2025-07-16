@@ -14,6 +14,5 @@ public class InverterDataPoint
     public double CurrentL1 { get; set; }
     public double CurrentL2 { get; set; }
     public double CurrentL3 { get; set; }
-
     public DateTime Timestamp { get; set; }
 }

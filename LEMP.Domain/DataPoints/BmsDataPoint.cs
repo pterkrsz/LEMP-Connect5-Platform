@@ -14,6 +14,5 @@ public class BmsDataPoint
     public bool ChargeDischargeOk { get; set; }
     public bool RelayStatus { get; set; }
     public bool CellBalancingStatus { get; set; }
-
     public DateTime Timestamp { get; set; }
 }

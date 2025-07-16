@@ -18,6 +18,5 @@ public class SmartMeterDataPoint
     public double CurrentL3 { get; set; }
     public string PhaseSequence { get; set; } = string.Empty;
     public string PowerDirection { get; set; } = string.Empty;
-
     public DateTime Timestamp { get; set; }
 }

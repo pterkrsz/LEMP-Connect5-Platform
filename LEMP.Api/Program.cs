@@ -2,6 +2,7 @@
 using LEMP.Infrastructure.Services;
 using InfluxDB3.Client;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -19,6 +20,7 @@ var influxBucket = influxSection["Bucket"] ?? string.Empty;
 
 builder.Services.AddSingleton(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", token: influxToken, database: influxBucket));
 
+
 builder.Services.AddSingleton(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<InfluxDbInitializer>>();
@@ -31,7 +33,9 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddScoped<IDataPointService>(sp =>
 {
     var client = sp.GetRequiredService<InfluxDBClient>();
+
     return new InfluxDataPointService(client, sp.GetRequiredService<ILogger<InfluxDataPointService>>());
+
 });
 
 var app = builder.Build();
