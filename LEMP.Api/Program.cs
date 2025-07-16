@@ -1,8 +1,6 @@
 ﻿using LEMP.Application.Interfaces;
 using LEMP.Infrastructure.Services;
-using InfluxDB3.Client;
-using System.Net.Http;
-using System.Net.Http.Headers;
+using InfluxDB.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,14 +17,7 @@ var influxToken = influxSection["Token"] ?? string.Empty;
 var influxBucket = influxSection["Bucket"] ?? string.Empty;
 
 
-builder.Services.AddSingleton<IInfluxDBClient>(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", token: influxToken, database: influxBucket));
-
-builder.Services.AddSingleton(_ =>
-{
-    var client = new HttpClient { BaseAddress = new Uri($"http://{influxHost}:{influxPort}") };
-    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", influxToken);
-    return client;
-});
+builder.Services.AddSingleton(_ => new InfluxDBClient($"http://{influxHost}:{influxPort}", influxToken));
 
 builder.Services.AddSingleton(sp =>
 {
@@ -37,7 +28,12 @@ builder.Services.AddSingleton(sp =>
 
     return new InfluxDbInitializer(endpoint, influxToken, org, influxBucket, retention, logger);
 });
-builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
+builder.Services.AddScoped<IDataPointService>(sp =>
+{
+    var client = sp.GetRequiredService<InfluxDBClient>();
+    var org = influxSection["Org"] ?? string.Empty;
+    return new InfluxDataPointService(client, influxBucket, org, sp.GetRequiredService<ILogger<InfluxDataPointService>>());
+});
 
 var app = builder.Build();
 
