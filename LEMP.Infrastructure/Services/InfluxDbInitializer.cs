@@ -105,7 +105,7 @@ public class InfluxDbInitializer
                 await foreach (var _ in sqlClient.Query(sql, QueryType.SQL, _database)) { }
             }
 
-            }
+        }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to ensure InfluxDB database structure");
