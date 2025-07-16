@@ -1,7 +1,6 @@
 using InfluxDB3.Client.Query;
 using Microsoft.Extensions.Logging;
 using InfluxDb3Client = InfluxDB3.Client.InfluxDBClient;
-
 namespace LEMP.Infrastructure.Services;
 
 public class InfluxDbInitializer
