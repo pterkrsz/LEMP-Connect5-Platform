@@ -1,23 +1,25 @@
-using InfluxDB3.Client;
-using InfluxDB3.Client.Query;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
+using System.IO;
+using InfluxDB3.Client;
+using InfluxDB3.Client.Query;
+using Microsoft.Extensions.Logging;
 
-namespace LEMP.Infrastructure.Services
+namespace LEMP.Infrastructure.Services;
+
+public class InfluxDbInitializer
 {
-    public class InfluxDbInitializer
-    {
-        private readonly string _endpointUrl;
-        private readonly string _authToken;
-        private readonly string _organization;
-        private readonly string _bucket;
-        private readonly TimeSpan _retentionPeriod;
-        private readonly ILogger<InfluxDbInitializer>? _logger;
+    private const int SchemaVersion = 1;
+    private static readonly string StateFilePath = Path.Combine(AppContext.BaseDirectory, "influxdb.state");
+    private readonly string _endpointUrl;
+    private readonly string _authToken;
+    private readonly string _organization;
+    private readonly string _bucket;
+    private readonly TimeSpan _retentionPeriod;
+    private readonly ILogger<InfluxDbInitializer>? _logger;
 
         public InfluxDbInitializer(
             string endpointUrl,
@@ -35,22 +37,36 @@ namespace LEMP.Infrastructure.Services
             _logger = logger;
         }
 
-        public async Task EnsureDatabaseStructureAsync()
+    public async Task EnsureDatabaseStructureAsync()
+    {
+        if (File.Exists(StateFilePath))
         {
-            using var http = new HttpClient { BaseAddress = new Uri(_endpointUrl) };
-            http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
+            try
+            {
+                var content = await File.ReadAllTextAsync(StateFilePath);
+                if (int.TryParse(content, out var version) && version >= SchemaVersion)
+                {
+                    _logger?.LogInformation("InfluxDB already initialized with schema version {Version}", version);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to read initialization state");
+            }
+        }
 
-            // 1. Create organization via v3 configure endpoint
-            await CreateIfNotExistsAsync(
-                http,
-                $"/api/v3/configure/organization?org={WebUtility.UrlEncode(_organization)}",
-                "organization");
+        using var http = new HttpClient { BaseAddress = new Uri(_endpointUrl) };
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
 
-            // 2. Create bucket (database) via v3 configure endpoint
-            await CreateIfNotExistsAsync(
-                http,
-                $"/api/v3/configure/database?db={WebUtility.UrlEncode(_bucket)}&retentionDays={(int)_retentionPeriod.TotalDays}",
-                "database");
+        var orgUri = $"/api/v3/configure/organization?org={Uri.EscapeDataString(_organization)}";
+        await CreateIfNotExistsAsync(http, orgUri, "organization");
+
+        var days = (int)Math.Ceiling(_retentionPeriod.TotalDays);
+        var bucketUri = $"/api/v3/configure/database?db={Uri.EscapeDataString(_bucket)}&retentionDays={days}";
+        await CreateIfNotExistsAsync(http, bucketUri, "bucket");
+
+        using var client = new InfluxDBClient(_endpointUrl, token: _authToken, database: _bucket);
 
             // 3. Ensure tables exist via SQL
             var sqlClient = new InfluxDBClient(_endpointUrl, token: _authToken, database: _bucket);
@@ -108,43 +124,45 @@ namespace LEMP.Infrastructure.Services
                     last_update_time TIMESTAMPTZ)"
             };
 
-            foreach (var sql in statements)
-            {
-                try
-                {
-                    await foreach (var _ in sqlClient.Query(sql, QueryType.SQL, _bucket)) { }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Failed to execute SQL statement: {Sql}", sql);
-                    throw;
-                }
-            }
-        }
-
-        private async Task CreateIfNotExistsAsync(HttpClient http, string requestUri, string resourceName)
+        foreach (var sql in statements)
         {
             try
             {
-                using var response = await http.PostAsync(
-                    requestUri,
-                    new StringContent("{}", Encoding.UTF8, "application/json")
-                );
-
-                if (response.StatusCode == HttpStatusCode.Conflict)
-                {
-                    _logger?.LogInformation("{Resource} already exists, skipping.", resourceName);
-                    return;
-                }
-
-                response.EnsureSuccessStatusCode();
-                _logger?.LogInformation("Created {Resource} successfully.", resourceName);
+                await foreach (var _ in client.Query(sql, QueryType.SQL, _bucket)) { }
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Failed to create {Resource}", resourceName);
-                throw;
+                _logger?.LogError(ex, "Failed to execute statement: {Sql}", sql);
             }
         }
+
+        try
+        {
+            await File.WriteAllTextAsync(StateFilePath, SchemaVersion.ToString());
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to write initialization state");
+        }
+    }
+
+    private async Task CreateIfNotExistsAsync(HttpClient http, string requestUri, string resourceName)
+    {
+        using var response = await http.PostAsync(requestUri, null);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            _logger?.LogInformation("{Resource} already exists", resourceName);
+            return;
+        }
+
+        if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created)
+        {
+            _logger?.LogInformation("{Resource} created", resourceName);
+            return;
+        }
+
+        var body = await response.Content.ReadAsStringAsync();
+        _logger?.LogError("Failed to create {Resource}: {Status} - {Body}", resourceName, response.StatusCode, body);
+        response.EnsureSuccessStatusCode();
     }
 }
