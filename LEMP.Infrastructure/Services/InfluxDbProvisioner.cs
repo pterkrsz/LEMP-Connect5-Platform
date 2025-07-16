@@ -23,11 +23,11 @@ public class InfluxDbProvisioner
             using var sqlClient = new InfluxDBClient(_endpointUrl, token: _token);
 
             var createOrg = $"CREATE ORG IF NOT EXISTS \"{orgName}\"";
-            await foreach (var _ in sqlClient.Query(createOrg, QueryType.SQL)) { }
+            await foreach (var _ in sqlClient.Query(createOrg, QueryType.SQL, bucketName)) { }
 
             var retentionDays = (int)Math.Ceiling(retention.TotalDays);
             var createBucket = $"CREATE BUCKET IF NOT EXISTS \"{bucketName}\" RETENTION {retentionDays}d";
-            await foreach (var _ in sqlClient.Query(createBucket, QueryType.SQL)) { }
+            await foreach (var _ in sqlClient.Query(createBucket, QueryType.SQL, bucketName)) { }
         }
         catch (Exception ex)
         {
