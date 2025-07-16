@@ -2,6 +2,10 @@ using InfluxDB3.Client;
 using InfluxDB3.Client.Query;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 
 namespace LEMP.Infrastructure.Services;
@@ -33,14 +37,17 @@ public class InfluxDbInitializer
 
     public async Task EnsureDatabaseStructureAsync()
     {
-        using var sqlClient = new InfluxDBClient(_endpointUrl, token: _authToken);
+        using var http = new HttpClient { BaseAddress = new Uri(_endpointUrl) };
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
 
         try
         {
-            var createOrg = $"CREATE ORG IF NOT EXISTS \"{_organization}\"";
-
-            await foreach (var _ in sqlClient.Query(createOrg, QueryType.SQL, _bucket)) { }
-
+            var orgPayload = new { name = _organization };
+            var resp = await http.PostAsJsonAsync("/api/v3/organizations", orgPayload);
+            if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.Conflict)
+            {
+                resp.EnsureSuccessStatusCode();
+            }
         }
         catch (Exception ex)
         {
@@ -50,11 +57,12 @@ public class InfluxDbInitializer
 
         try
         {
-            var retentionDays = (int)_retentionPeriod.TotalDays;
-            var createBucket = $"CREATE BUCKET IF NOT EXISTS \"{_bucket}\" RETENTION {retentionDays}d";
-
-            await foreach (var _ in sqlClient.Query(createBucket, QueryType.SQL, _bucket)) { }
-
+            var bucketPayload = new { name = _bucket, retentionDays = (int)_retentionPeriod.TotalDays };
+            var resp = await http.PostAsJsonAsync("/api/v3/buckets", bucketPayload);
+            if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.Conflict)
+            {
+                resp.EnsureSuccessStatusCode();
+            }
         }
         catch (Exception ex)
         {
@@ -62,12 +70,14 @@ public class InfluxDbInitializer
             throw;
         }
 
+        using var sqlClient = new InfluxDBClient(_endpointUrl, token: _authToken);
+
         var statements = new[]
         {
             @"CREATE TABLE IF NOT EXISTS inverter_data (
                 time TIMESTAMPTZ NOT NULL,
-                BuildingId TAG,
-                InverterId TAG,
+                BuildingId TEXT DIMENSION,
+                InverterId TEXT DIMENSION,
                 power_active DOUBLE,
                 power_reactive DOUBLE,
                 Frequency DOUBLE,
@@ -79,8 +89,8 @@ public class InfluxDbInitializer
                 current_l3 DOUBLE)",
             @"CREATE TABLE IF NOT EXISTS bms_data (
                 time TIMESTAMPTZ NOT NULL,
-                BuildingId TAG,
-                BatteryId TAG,
+                BuildingId TEXT DIMENSION,
+                BatteryId TEXT DIMENSION,
                 charge_current DOUBLE,
                 discharge_current DOUBLE,
                 temperature_avg DOUBLE,
@@ -92,8 +102,8 @@ public class InfluxDbInitializer
                 cell_balancing BOOLEAN)",
             @"CREATE TABLE IF NOT EXISTS smartmeter_data (
                 time TIMESTAMPTZ NOT NULL,
-                BuildingId TAG,
-                MeterId TAG,
+                BuildingId TEXT DIMENSION,
+                MeterId TEXT DIMENSION,
                 total_import_energy DOUBLE,
                 total_export_energy DOUBLE,
                 current_power DOUBLE,
@@ -109,8 +119,8 @@ public class InfluxDbInitializer
                 power_direction STRING)",
             @"CREATE TABLE IF NOT EXISTS meta_data (
                 time TIMESTAMPTZ NOT NULL,
-                BuildingId TAG,
-                DeviceId TAG,
+                BuildingId TEXT DIMENSION,
+                DeviceId TEXT DIMENSION,
                 firmware_version STRING,
                 comm_status BOOLEAN,
                 last_update_time TIMESTAMPTZ)"
