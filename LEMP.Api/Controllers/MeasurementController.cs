@@ -1,7 +1,5 @@
-using LEMP.Application.Constants;
 using LEMP.Application.DTOs;
 using LEMP.Application.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LEMP.Api.Controllers;
@@ -18,7 +16,6 @@ public class MeasurementController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = Roles.Admin + "," + Roles.Operator)]
     public async Task<IActionResult> Post([FromBody] MeasurementDto dto)
     {
         await _service.AddMeasurementAsync(dto);
@@ -26,7 +23,6 @@ public class MeasurementController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = Roles.Admin + "," + Roles.Operator + "," + Roles.ReadOnly)]
     public async Task<ActionResult<IEnumerable<MeasurementDto>>> Get()
     {
         var all = await _service.GetAllAsync();

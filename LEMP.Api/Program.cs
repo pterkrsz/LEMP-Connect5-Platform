@@ -1,26 +1,15 @@
 ﻿using LEMP.Application.Interfaces;
 using LEMP.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using InfluxDB3.Client;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using Serilog;
-using System.Text;
-using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseSerilog((context, services, configuration) =>
-    configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .WriteTo.Console()
-        .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddAuthorization();
 
 
 var influxSection = builder.Configuration.GetSection("InfluxDB");
@@ -41,35 +30,13 @@ builder.Services.AddSingleton(_ =>
 
 builder.Services.AddSingleton<InfluxDbInitializer>();
 builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
-builder.Services.AddScoped<ITwoFactorService, InfluxTwoFactorService>();
-
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Issuer"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
-        };
-    });
 
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseSerilogRequestLogging();
-
 app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
