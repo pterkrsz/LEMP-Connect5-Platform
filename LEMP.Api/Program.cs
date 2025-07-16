@@ -28,7 +28,15 @@ builder.Services.AddSingleton(_ =>
     return client;
 });
 
-builder.Services.AddSingleton<InfluxDbInitializer>();
+builder.Services.AddSingleton(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<InfluxDbInitializer>>();
+    var endpoint = $"http://{influxHost}:{influxPort}";
+    var org = influxSection["Org"] ?? string.Empty;
+    var retention = TimeSpan.FromDays(30);
+
+    return new InfluxDbInitializer(endpoint, influxToken, org, influxBucket, retention, logger);
+});
 builder.Services.AddScoped<IMeasurementService, InfluxMeasurementService>();
 
 var app = builder.Build();
@@ -42,7 +50,7 @@ using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
 
-    await initializer.InitializeAsync();
+    await initializer.EnsureDatabaseStructureAsync();
 
 }
 
