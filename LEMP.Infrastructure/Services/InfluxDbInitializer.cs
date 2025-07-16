@@ -35,32 +35,9 @@ public class InfluxDbInitializer
     {
         using var sqlClient = new InfluxDBClient(_endpointUrl, token: _authToken);
 
-        try
-        {
-            var createOrg = $"CREATE ORG IF NOT EXISTS \"{_organization}\"";
 
-            await foreach (var _ in sqlClient.Query(createOrg, QueryType.SQL, _bucket)) { }
 
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to create organization");
-            throw;
-        }
 
-        try
-        {
-            var retentionDays = (int)_retentionPeriod.TotalDays;
-            var createBucket = $"CREATE BUCKET IF NOT EXISTS \"{_bucket}\" RETENTION {retentionDays}d";
-
-            await foreach (var _ in sqlClient.Query(createBucket, QueryType.SQL, _bucket)) { }
-
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to create bucket");
-            throw;
-        }
 
         var statements = new[]
         {
