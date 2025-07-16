@@ -1,7 +1,7 @@
-using InfluxDB.Client;
-using InfluxDB.Client.Api.Domain;
-using InfluxDB.Client.Writes;
-using RestSharp;
+using InfluxDB3.Client;
+using InfluxDB3.Client.Write;
+using InfluxDB3.Client.Query;
+using Apache.Arrow;
 using LEMP.Domain.DataPoints;
 using LEMP.Infrastructure.Services;
 using LEMP.Application.Interfaces;
@@ -11,42 +11,45 @@ namespace LEMP.Test;
 
 public class InfluxDataPointServiceTests
 {
-    private class FakeWriteApi : IWriteApiAsync
+    private class FakeClient : IInfluxDBClient
     {
-        public List<object> Written { get; } = new();
+        public List<PointData> Written { get; } = new();
 
-        public Task WriteMeasurementAsync<T>(T measurement, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default)
+        public Task WritePointAsync(PointData point, string? database = null, WritePrecision? precision = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
         {
-            Written.Add(measurement!);
+            Written.Add(point);
+
             return Task.CompletedTask;
         }
 
         // Unused interface methods
-        public Task WriteRecordAsync(string record, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task WriteRecordsAsync(List<string> records, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task WriteRecordsAsync(string[] records, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<RestResponse> WriteRecordsAsyncWithIRestResponse(IEnumerable<string> records, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.FromResult(new RestResponse());
-        public Task WritePointAsync(PointData point, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task WritePointsAsync(List<PointData> points, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task WritePointsAsync(PointData[] points, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<RestResponse[]> WritePointsAsyncWithIRestResponse(IEnumerable<PointData> points, string bucket, string org, CancellationToken cancellationToken = default) => Task.FromResult(Array.Empty<RestResponse>());
-        public Task WriteMeasurementsAsync<T>(List<T> measurements, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task WriteMeasurementsAsync<T>(T[] measurements, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<RestResponse> WriteMeasurementsAsyncWithIRestResponse<TM>(IEnumerable<TM> measurements, WritePrecision precision, string bucket, string org, CancellationToken cancellationToken = default) => Task.FromResult(new RestResponse());
+
+        public void Dispose() { }
+        public IAsyncEnumerable<object?[]> Query(string query, QueryType? queryType = null, string? database = null, Dictionary<string, object>? namedParameters = null, Dictionary<string, string>? headers = null) => throw new NotImplementedException();
+        public IAsyncEnumerable<PointDataValues> QueryPoints(string query, QueryType? queryType = null, string? database = null, Dictionary<string, object>? namedParameters = null, Dictionary<string, string>? headers = null) => throw new NotImplementedException();
+        public IAsyncEnumerable<RecordBatch> QueryBatches(string query, QueryType? queryType = null, string? database = null, Dictionary<string, object>? namedParameters = null, Dictionary<string, string>? headers = null) => throw new NotImplementedException();
+        public Task WriteRecordAsync(string record, string? database = null, WritePrecision? precision = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task WriteRecordsAsync(IEnumerable<string> records, string? database = null, WritePrecision? precision = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task WritePointsAsync(IEnumerable<PointData> points, string? database = null, WritePrecision? precision = null, Dictionary<string, string>? headers = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     }
 
 
     [Test]
     public async Task WriteAsyncStoresMeasurement()
     {
-        var fakeApi = new FakeWriteApi();
-        var service = new InfluxDataPointService(fakeApi, "bucket", "org");
+
+        var fakeClient = new FakeClient();
+        var service = new InfluxDataPointService(fakeClient);
+
 
         var point = new InverterDataPoint { BuildingId = "b1", InverterId = "i1", PowerActive = 1, Timestamp = DateTime.UtcNow };
 
         await service.WriteAsync(point);
 
-        Assert.That(fakeApi.Written.Count, Is.EqualTo(1));
-        Assert.That(fakeApi.Written[0], Is.SameAs(point));
+
+        Assert.That(fakeClient.Written.Count, Is.EqualTo(1));
+        Assert.That(fakeClient.Written[0].GetTag("InverterId"), Is.EqualTo("i1"));
+
     }
 }
