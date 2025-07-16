@@ -28,6 +28,7 @@ builder.Services.AddSingleton(sp =>
 
     return new InfluxDbInitializer(endpoint, influxToken, org, influxBucket, retention, logger);
 });
+
 builder.Services.AddScoped<IDataPointService>(sp =>
 {
     var client = sp.GetRequiredService<InfluxDBClient>();
