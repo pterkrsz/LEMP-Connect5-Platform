@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.IO;
 using InfluxDB3.Client;
 using InfluxDB3.Client.Query;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,8 @@ namespace LEMP.Infrastructure.Services;
 
 public class InfluxDbInitializer
 {
+    private const int SchemaVersion = 1;
+    private static readonly string StateFilePath = Path.Combine(AppContext.BaseDirectory, "influxdb.state");
     private readonly string _endpointUrl;
     private readonly string _authToken;
     private readonly string _organization;
@@ -36,6 +39,23 @@ public class InfluxDbInitializer
 
     public async Task EnsureDatabaseStructureAsync()
     {
+        if (File.Exists(StateFilePath))
+        {
+            try
+            {
+                var content = await File.ReadAllTextAsync(StateFilePath);
+                if (int.TryParse(content, out var version) && version >= SchemaVersion)
+                {
+                    _logger?.LogInformation("InfluxDB already initialized with schema version {Version}", version);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to read initialization state");
+            }
+        }
+
         using var http = new HttpClient { BaseAddress = new Uri(_endpointUrl) };
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
 
@@ -112,6 +132,15 @@ public class InfluxDbInitializer
             {
                 _logger?.LogError(ex, "Failed to execute statement: {Sql}", sql);
             }
+        }
+
+        try
+        {
+            await File.WriteAllTextAsync(StateFilePath, SchemaVersion.ToString());
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to write initialization state");
         }
     }
 
