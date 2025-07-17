@@ -53,26 +53,26 @@ namespace LEMP.Api
             var client = sp.GetRequiredService<IHttpClientFactory>().CreateClient("Influx");
 
             // 1) Write line protocol to database
-            var writeUrl = $"/api/v3/write_lp?db={Uri.EscapeDataString(bucket)}&precision=ns";
+            var writeUrl = $"/api/v3/write_lp?db={Uri.EscapeDataString(bucket)}&org={Uri.EscapeDataString(org)}&precision=ns";
             await Test(client, HttpMethod.Post, writeUrl, "test,tag=example value=123", "text/plain");
 
             // 2) Query SQL via POST
             var sqlBody = JsonSerializer.Serialize(new
             {
-                database = bucket,
-                query_str = "SELECT * FROM test LIMIT 1",
-                format = "jsonl"
+                db = bucket,
+                query = "SELECT * FROM test LIMIT 1",
+                format = "json"
             });
-            await Test(client, HttpMethod.Post, "/api/v3/query_sql", sqlBody);
+            await Test(client, HttpMethod.Post, "/api/v3/query/sql", sqlBody);
 
             // 3) Query InfluxQL via POST
             var influxqlBody = JsonSerializer.Serialize(new
             {
-                database = bucket,
-                query_str = "SELECT * FROM test LIMIT 1",
-                format = "jsonl"
+                db = bucket,
+                query = "SELECT * FROM test LIMIT 1",
+                format = "json"
             });
-            await Test(client, HttpMethod.Post, "/api/v3/query_influxql", influxqlBody);
+            await Test(client, HttpMethod.Post, "/api/v3/query/influxql", influxqlBody);
 
             // 4) Health, Ping, Metrics (no auth params)
             await Test(client, HttpMethod.Get, "/health");
@@ -80,8 +80,8 @@ namespace LEMP.Api
             await Test(client, HttpMethod.Get, "/metrics");
 
             // 5) Database configuration
-            await Test(client, HttpMethod.Get, "/api/v3/configure/database");
-            var dbBody = JsonSerializer.Serialize(new { db = bucket });
+            await Test(client, HttpMethod.Get, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket));
+            var dbBody = JsonSerializer.Serialize(new { db = bucket, org });
             await Test(client, HttpMethod.Post, "/api/v3/configure/database", dbBody);
             await Test(client, HttpMethod.Delete, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket));
 
@@ -90,8 +90,11 @@ namespace LEMP.Api
             {
                 db = bucket,
                 table = "test_table",
-                tags = new[] { "_time" },
-                fields = new[] { new { name = "value", type = "float64" } }
+                columns = new[]
+                {
+                    new { name = "_time", type = "timestamp" },
+                    new { name = "value", type = "double" }
+                }
             });
             await Test(client, HttpMethod.Post, "/api/v3/configure/table", tblBody);
             await Test(client, HttpMethod.Delete, "/api/v3/configure/table?db=" + Uri.EscapeDataString(bucket) + "&table=test_table");
@@ -103,11 +106,11 @@ namespace LEMP.Api
             // 8) List tokens via SQL
             var tokenBody = JsonSerializer.Serialize(new
             {
-                database = "_internal",
-                query_str = "SELECT id, name, permissions FROM system.tokens",
-                format = "jsonl"
+                db = "_internal",
+                query = "SELECT id, name, permissions FROM system.tokens",
+                format = "json"
             });
-            await Test(client, HttpMethod.Post, "/api/v3/query_sql", tokenBody);
+            await Test(client, HttpMethod.Post, "/api/v3/query/sql", tokenBody);
         }
 
         private static async Task Test(HttpClient client, HttpMethod method, string path, string? body = null, string media = "application/json")
