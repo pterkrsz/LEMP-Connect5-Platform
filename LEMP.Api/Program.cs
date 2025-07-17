@@ -53,24 +53,30 @@ namespace LEMP.Api
             var client = sp.GetRequiredService<IHttpClientFactory>().CreateClient("Influx");
 
             // 1) Write line protocol to database
+
             var writeUrl = $"/api/v3/write_lp?db={Uri.EscapeDataString(bucket)}&org={Uri.EscapeDataString(org)}&precision=ns";
+
             await Test(client, HttpMethod.Post, writeUrl, "test,tag=example value=123", "text/plain");
 
             // 2) Query SQL via POST
             var sqlBody = JsonSerializer.Serialize(new
             {
+
                 db = bucket,
                 query = "SELECT * FROM test LIMIT 1",
                 format = "json"
+
             });
             await Test(client, HttpMethod.Post, "/api/v3/query/sql", sqlBody);
 
             // 3) Query InfluxQL via POST
             var influxqlBody = JsonSerializer.Serialize(new
             {
+
                 db = bucket,
                 query = "SELECT * FROM test LIMIT 1",
                 format = "json"
+
             });
             await Test(client, HttpMethod.Post, "/api/v3/query/influxql", influxqlBody);
 
@@ -80,6 +86,7 @@ namespace LEMP.Api
             await Test(client, HttpMethod.Get, "/metrics");
 
             // 5) Database configuration
+
             await Test(client, HttpMethod.Get, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket));
             var dbBody = JsonSerializer.Serialize(new { db = bucket, org });
             await Test(client, HttpMethod.Post, "/api/v3/configure/database", dbBody);
@@ -90,11 +97,13 @@ namespace LEMP.Api
             {
                 db = bucket,
                 table = "test_table",
+
                 columns = new[]
                 {
                     new { name = "_time", type = "timestamp" },
                     new { name = "value", type = "double" }
                 }
+
             });
             await Test(client, HttpMethod.Post, "/api/v3/configure/table", tblBody);
             await Test(client, HttpMethod.Delete, "/api/v3/configure/table?db=" + Uri.EscapeDataString(bucket) + "&table=test_table");
@@ -106,9 +115,11 @@ namespace LEMP.Api
             // 8) List tokens via SQL
             var tokenBody = JsonSerializer.Serialize(new
             {
+
                 db = "_internal",
                 query = "SELECT id, name, permissions FROM system.tokens",
                 format = "json"
+
             });
             await Test(client, HttpMethod.Post, "/api/v3/query/sql", tokenBody);
         }
