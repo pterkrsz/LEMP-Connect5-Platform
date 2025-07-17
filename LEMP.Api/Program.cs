@@ -52,17 +52,15 @@ namespace LEMP.Api
         {
             var client = sp.GetRequiredService<IHttpClientFactory>().CreateClient("Influx");
 
-            // 1) Write line protocol (bucket, org, node_id)
-            var writeUrl = $"/api/v3/write_lp?bucket={Uri.EscapeDataString(bucket)}&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}&precision=ns";
+            // 1) Write line protocol to database
+            var writeUrl = $"/api/v3/write_lp?db={Uri.EscapeDataString(bucket)}&precision=ns";
             await Test(client, HttpMethod.Post, writeUrl, "test,tag=example value=123", "text/plain");
 
             // 2) Query SQL via POST
             var sqlBody = JsonSerializer.Serialize(new
             {
-                db = bucket,
-                org,
-                node_id = node,
-                q = "SELECT * FROM test LIMIT 1",
+                database = bucket,
+                query_str = "SELECT * FROM test LIMIT 1",
                 format = "jsonl"
             });
             await Test(client, HttpMethod.Post, "/api/v3/query_sql", sqlBody);
@@ -70,10 +68,8 @@ namespace LEMP.Api
             // 3) Query InfluxQL via POST
             var influxqlBody = JsonSerializer.Serialize(new
             {
-                db = bucket,
-                org,
-                node_id = node,
-                q = "SELECT * FROM test LIMIT 1",
+                database = bucket,
+                query_str = "SELECT * FROM test LIMIT 1",
                 format = "jsonl"
             });
             await Test(client, HttpMethod.Post, "/api/v3/query_influxql", influxqlBody);
@@ -84,22 +80,21 @@ namespace LEMP.Api
             await Test(client, HttpMethod.Get, "/metrics");
 
             // 5) Database configuration
-            await Test(client, HttpMethod.Get, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket) + $"&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}");
-            var dbBody = JsonSerializer.Serialize(new { db = bucket, org, node_id = node });
+            await Test(client, HttpMethod.Get, "/api/v3/configure/database");
+            var dbBody = JsonSerializer.Serialize(new { db = bucket });
             await Test(client, HttpMethod.Post, "/api/v3/configure/database", dbBody);
-            await Test(client, HttpMethod.Delete, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket) + $"&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}");
+            await Test(client, HttpMethod.Delete, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket));
 
             // 6) Table configuration
             var tblBody = JsonSerializer.Serialize(new
             {
                 db = bucket,
-                org,
                 table = "test_table",
-                schema = new { _time = "timestamp", value = "double" },
-                node_id = node
+                tags = new[] { "_time" },
+                fields = new[] { new { name = "value", type = "float64" } }
             });
             await Test(client, HttpMethod.Post, "/api/v3/configure/table", tblBody);
-            await Test(client, HttpMethod.Delete, "/api/v3/configure/table?db=" + Uri.EscapeDataString(bucket) + "&table=test_table" + $"&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}");
+            await Test(client, HttpMethod.Delete, "/api/v3/configure/table?db=" + Uri.EscapeDataString(bucket) + "&table=test_table");
 
             // 7) Plugin environment install packages
             var pkgBody = JsonSerializer.Serialize(new { packages = new[] { "influxdb3-python" } });
@@ -108,10 +103,8 @@ namespace LEMP.Api
             // 8) List tokens via SQL
             var tokenBody = JsonSerializer.Serialize(new
             {
-                db = "_internal",
-                org,
-                node_id = node,
-                q = "SELECT id, name, permissions FROM system.tokens",
+                database = "_internal",
+                query_str = "SELECT id, name, permissions FROM system.tokens",
                 format = "jsonl"
             });
             await Test(client, HttpMethod.Post, "/api/v3/query_sql", tokenBody);
