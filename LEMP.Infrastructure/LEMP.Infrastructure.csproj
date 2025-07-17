@@ -14,5 +14,8 @@
   <ItemGroup>
     <PackageReference Include="InfluxDB3.Client" Version="1.2.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Services\" />
+  </ItemGroup>
 
 </Project>

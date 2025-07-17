@@ -1,94 +1,137 @@
-﻿// Program.cs
-using LEMP.Application.Interfaces;
-using LEMP.Infrastructure.Services;
-using InfluxDB3.Client;
-using Microsoft.Extensions.Logging;
+﻿// NuGet packages:
+// dotnet add package InfluxDB3.Client
+// dotnet add package Microsoft.Extensions.Http
+
 using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// 1) Configuration betöltése
-var influxSection = builder.Configuration.GetSection("InfluxDB");
-var influxHost = influxSection["Host"] ?? "localhost";
-var influxPort = influxSection["Port"] ?? "8181";
-var influxToken = influxSection["Token"] ?? "";
-var influxBucket = influxSection["Bucket"] ?? "";
-var influxOrg = influxSection["Org"] ?? "";
-
-// 2) InfluxDBClient regisztrálása (Flight SQL használatra)
-builder.Services.AddSingleton(_ =>
-    new InfluxDBClient(
-        $"http://{influxHost}:{influxPort}",
-        token: influxToken,
-        database: influxBucket
-    )
-);
-
-// 3) Initializer regisztrálása
-builder.Services.AddSingleton<InfluxDbInitializer>(sp =>
+namespace LEMP.Api
 {
-    var client = sp.GetRequiredService<InfluxDBClient>();
-    var logger = sp.GetRequiredService<ILogger<InfluxDbInitializer>>();
-    var org = influxSection["Org"] ?? string.Empty;
-    var retention = TimeSpan.FromDays(30);
-    return new InfluxDbInitializer(client, influxBucket, org, retention, logger);
-});
+    public class Program
+    {
+        public static async Task Main(string[] args)
+        {
+            Console.WriteLine("Starting application...");
+            var builder = WebApplication.CreateBuilder(args);
 
-// Telemetry service regisztrálása
-builder.Services.AddScoped<TelemetryService>();
+            // Configuration
+            var influx = builder.Configuration.GetSection("InfluxDB");
+            var host = influx["Host"] ?? "localhost";
+            var port = int.Parse(influx["Port"] ?? "8181");
+            var token = influx["Token"] ?? string.Empty;
+            var bucket = influx["Bucket"] ?? string.Empty;
+            var org = influx["Org"] ?? string.Empty;
+            var node = influx["NodeId"] ?? string.Empty;
+            Console.WriteLine($"Config: host={host}, port={port}, bucket={bucket}, org={org}, node={node}");
+            var baseUri = new UriBuilder("http", host, port).Uri;
 
-// DataPoint service regisztrálása
-builder.Services.AddScoped<IDataPointService>(sp =>
-{
-    var client = sp.GetRequiredService<InfluxDBClient>();
-    var log = sp.GetRequiredService<ILogger<InfluxDataPointService>>();
-    return new InfluxDataPointService(client, log);
-});
+            // HttpClient DI
+            builder.Services.AddHttpClient("Influx", c =>
+            {
+                c.BaseAddress = baseUri;
+                c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            });
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+            var app = builder.Build();
+            Console.WriteLine("Running API tests:");
+            await RunTests(app.Services, bucket, org, node);
 
-var app = builder.Build();
+            Console.WriteLine("Starting web host...");
+            app.Run();
+        }
 
-// 5) Health-check
-using var http = new HttpClient { BaseAddress = new Uri($"http://{influxHost}:{influxPort}") };
-http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", influxToken);
-var health = await http.GetAsync("/health");
-health.EnsureSuccessStatusCode();
-Console.WriteLine($"[Init] InfluxDB health OK: {await health.Content.ReadAsStringAsync()}");
+        private static async Task RunTests(IServiceProvider sp, string bucket, string org, string node)
+        {
+            var client = sp.GetRequiredService<IHttpClientFactory>().CreateClient("Influx");
 
-// 6) Inicializálás Flight SQL-lel
-using (var scope = app.Services.CreateScope())
-{
-    var init = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
-    await init.EnsureDatabaseStructureAsync();
+            // 1) Write line protocol (bucket, org, node_id)
+            var writeUrl = $"/api/v3/write_lp?bucket={Uri.EscapeDataString(bucket)}&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}&precision=ns";
+            await Test(client, HttpMethod.Post, writeUrl, "test,tag=example value=123", "text/plain");
+
+            // 2) Query SQL via POST
+            var sqlBody = JsonSerializer.Serialize(new
+            {
+                db = bucket,
+                org,
+                node_id = node,
+                q = "SELECT * FROM test LIMIT 1",
+                format = "jsonl"
+            });
+            await Test(client, HttpMethod.Post, "/api/v3/query_sql", sqlBody);
+
+            // 3) Query InfluxQL via POST
+            var influxqlBody = JsonSerializer.Serialize(new
+            {
+                db = bucket,
+                org,
+                node_id = node,
+                q = "SELECT * FROM test LIMIT 1",
+                format = "jsonl"
+            });
+            await Test(client, HttpMethod.Post, "/api/v3/query_influxql", influxqlBody);
+
+            // 4) Health, Ping, Metrics (no auth params)
+            await Test(client, HttpMethod.Get, "/health");
+            await Test(client, HttpMethod.Get, "/ping");
+            await Test(client, HttpMethod.Get, "/metrics");
+
+            // 5) Database configuration
+            await Test(client, HttpMethod.Get, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket) + $"&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}");
+            var dbBody = JsonSerializer.Serialize(new { db = bucket, org, node_id = node });
+            await Test(client, HttpMethod.Post, "/api/v3/configure/database", dbBody);
+            await Test(client, HttpMethod.Delete, "/api/v3/configure/database?db=" + Uri.EscapeDataString(bucket) + $"&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}");
+
+            // 6) Table configuration
+            var tblBody = JsonSerializer.Serialize(new
+            {
+                db = bucket,
+                org,
+                table = "test_table",
+                schema = new { _time = "timestamp", value = "double" },
+                node_id = node
+            });
+            await Test(client, HttpMethod.Post, "/api/v3/configure/table", tblBody);
+            await Test(client, HttpMethod.Delete, "/api/v3/configure/table?db=" + Uri.EscapeDataString(bucket) + "&table=test_table" + $"&org={Uri.EscapeDataString(org)}&node_id={Uri.EscapeDataString(node)}");
+
+            // 7) Plugin environment install packages
+            var pkgBody = JsonSerializer.Serialize(new { packages = new[] { "influxdb3-python" } });
+            await Test(client, HttpMethod.Post, "/api/v3/configure/plugin_environment/install_packages", pkgBody);
+
+            // 8) List tokens via SQL
+            var tokenBody = JsonSerializer.Serialize(new
+            {
+                db = "_internal",
+                org,
+                node_id = node,
+                q = "SELECT id, name, permissions FROM system.tokens",
+                format = "jsonl"
+            });
+            await Test(client, HttpMethod.Post, "/api/v3/query_sql", tokenBody);
+        }
+
+        private static async Task Test(HttpClient client, HttpMethod method, string path, string? body = null, string media = "application/json")
+        {
+            HttpResponseMessage res;
+            if (method == HttpMethod.Get)
+            {
+                res = await client.GetAsync(path);
+            }
+            else
+            {
+                var req = new HttpRequestMessage(method, path);
+                if (body != null)
+                    req.Content = new StringContent(body, Encoding.UTF8, media);
+                res = await client.SendAsync(req);
+            }
+            Console.WriteLine($"[Test] {method.Method} {path} -> {res.StatusCode}");
+        }
+    }
 }
-
-app.UseSwagger();
-app.UseSwaggerUI();
-app.UseHttpsRedirection();
-
-using var scope = app.Services.CreateScope();
-var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
-await initializer.EnsureDatabaseStructureAsync();
-// opcionális minta adat
-var telemetry = scope.ServiceProvider.GetRequiredService<TelemetryService>();
-await telemetry.SendInverterReadingAsync(
-    "demo_building",
-    "inv_demo",
-    1000,
-    100,
-    50,
-    230,
-    230,
-    230,
-    5,
-    5,
-    5,
-    DateTime.UtcNow);
-
-app.MapControllers();
-app.Run();
