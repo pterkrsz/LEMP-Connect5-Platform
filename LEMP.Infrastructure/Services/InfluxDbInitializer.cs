@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.IO;
 using InfluxDB3.Client;
@@ -14,28 +15,38 @@ public class InfluxDbInitializer
 {
     private const int SchemaVersion = 1;
     private static readonly string StateFilePath = Path.Combine(AppContext.BaseDirectory, "influxdb.state");
-    private readonly string _endpointUrl;
-    private readonly string _authToken;
+    private readonly InfluxDBClient _client;
     private readonly string _organization;
     private readonly string _bucket;
     private readonly TimeSpan _retentionPeriod;
     private readonly ILogger<InfluxDbInitializer>? _logger;
 
         public InfluxDbInitializer(
-            string endpointUrl,
-            string authToken,
-            string organization,
+            InfluxDBClient client,
             string bucket,
+            string organization,
             TimeSpan retentionPeriod,
-            ILogger<InfluxDbInitializer>? logger = null)
+            ILogger<InfluxDbInitializer>? logger)
         {
-            _endpointUrl = endpointUrl.TrimEnd('/');
-            _authToken = authToken;
+            _client = client;
             _organization = organization;
             _bucket = bucket;
             _retentionPeriod = retentionPeriod;
             _logger = logger;
         }
+
+    private (string Host, string Token) GetConnectionInfo()
+    {
+        var configField = typeof(InfluxDBClient).GetField("_config", BindingFlags.NonPublic | BindingFlags.Instance);
+        var config = configField?.GetValue(_client);
+        if (config is null)
+            throw new InvalidOperationException("Cannot access InfluxDB client configuration");
+        var hostProp = config.GetType().GetProperty("Host");
+        var tokenProp = config.GetType().GetProperty("Token");
+        var host = (string?)hostProp?.GetValue(config) ?? throw new InvalidOperationException("Host missing");
+        var token = (string?)tokenProp?.GetValue(config) ?? string.Empty;
+        return (host.TrimEnd('/'), token);
+    }
 
     public async Task EnsureDatabaseStructureAsync()
     {
@@ -56,8 +67,9 @@ public class InfluxDbInitializer
             }
         }
 
-        using var http = new HttpClient { BaseAddress = new Uri(_endpointUrl) };
-        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _authToken);
+        var (host, token) = GetConnectionInfo();
+        using var http = new HttpClient { BaseAddress = new Uri(host) };
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var orgUri = $"/api/v3/configure/organization?org={Uri.EscapeDataString(_organization)}";
         await CreateIfNotExistsAsync(http, orgUri, "organization");
@@ -66,11 +78,8 @@ public class InfluxDbInitializer
         var bucketUri = $"/api/v3/configure/database?db={Uri.EscapeDataString(_bucket)}&retentionDays={days}";
         await CreateIfNotExistsAsync(http, bucketUri, "bucket");
 
-        using var client = new InfluxDBClient(_endpointUrl, token: _authToken, database: _bucket);
-
-            // 3. Ensure tables exist via SQL
-            var sqlClient = new InfluxDBClient(_endpointUrl, token: _authToken, database: _bucket);
-            var statements = new[]
+        // 3. Ensure tables exist via SQL
+        var statements = new[]
             {
                 @"CREATE TABLE IF NOT EXISTS inverter_data (
                     time TIMESTAMPTZ NOT NULL,
@@ -128,7 +137,7 @@ public class InfluxDbInitializer
         {
             try
             {
-                await foreach (var _ in client.Query(sql, QueryType.SQL, _bucket)) { }
+                await foreach (var _ in _client.Query(sql, QueryType.SQL, _bucket)) { }
             }
             catch (Exception ex)
             {

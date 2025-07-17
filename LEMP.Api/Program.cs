@@ -29,13 +29,15 @@ builder.Services.AddSingleton(_ =>
 // Initializer regisztrálása
 builder.Services.AddSingleton(sp =>
 {
+    var client = sp.GetRequiredService<InfluxDBClient>();
     var logger = sp.GetRequiredService<ILogger<InfluxDbInitializer>>();
-    var endpoint = $"http://{influxHost}:{influxPort}";
     var org = influxSection["Org"] ?? string.Empty;
     var retention = TimeSpan.FromDays(30);
-
-    return new InfluxDbInitializer(endpoint, influxToken, org, influxBucket, retention, logger);
+    return new InfluxDbInitializer(client, influxBucket, org, retention, logger);
 });
+
+// Telemetry service regisztrálása
+builder.Services.AddScoped<TelemetryService>();
 
 // DataPoint service regisztrálása
 builder.Services.AddScoped<IDataPointService>(sp =>
@@ -71,9 +73,24 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
- using var scope = app.Services.CreateScope();
- var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
- await initializer.EnsureDatabaseStructureAsync();
+using var scope = app.Services.CreateScope();
+var initializer = scope.ServiceProvider.GetRequiredService<InfluxDbInitializer>();
+await initializer.EnsureDatabaseStructureAsync();
+// opcionális minta adat
+var telemetry = scope.ServiceProvider.GetRequiredService<TelemetryService>();
+await telemetry.SendInverterReadingAsync(
+    "demo_building",
+    "inv_demo",
+    1000,
+    100,
+    50,
+    230,
+    230,
+    230,
+    5,
+    5,
+    5,
+    DateTime.UtcNow);
 
 app.MapControllers();
 app.Run();
