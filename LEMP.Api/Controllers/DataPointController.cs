@@ -6,6 +6,7 @@ using InfluxDB3.Client;
 using InfluxDB3.Client.Write;
 using LEMP.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 
 namespace LEMP.Api.Controllers
 {
@@ -44,7 +45,7 @@ namespace LEMP.Api.Controllers
             }
 
             var sql = $"select * from {measurement} order by time desc limit {limit}";
-            var rows = new List<object[]>();
+            var rows = new List<object?[]>();
             await foreach (var row in _client.Query(query: sql))
             {
                 rows.Add(row);
@@ -89,7 +90,15 @@ namespace LEMP.Api.Controllers
                 point = point.SetTimestamp(dto.Timestamp.Value);
             }
 
-            await _client.WritePointAsync(point);
+            try
+            {
+                await _client.WritePointAsync(point);
+            }
+            catch (InfluxDBApiException ex)
+            {
+                return StatusCode((int)ex.StatusCode, ex.Message);
+            }
+
             return CreatedAtAction(nameof(Get), new { measurement = dto.Measurement, limit = 1 }, null);
         }
     }
