@@ -3,29 +3,20 @@ using System.Collections.Generic;
 
 namespace LEMP.Api.Models
 {
-    /// <summary>
-    /// Represents a generic InfluxDB data point.
-    /// </summary>
+
+    // Generic InfluxDB data point payload
     public class DataPointDto
     {
-        /// <summary>
-        /// Measurement name for the point.
-        /// </summary>
+        // Measurement name
         public string Measurement { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Tags associated with the point.
-        /// </summary>
+        // Tags associated with the point
         public IDictionary<string, string>? Tags { get; set; }
 
-        /// <summary>
-        /// Fields of the point.
-        /// </summary>
+        // Fields of the point
         public IDictionary<string, object>? Fields { get; set; }
 
-        /// <summary>
-        /// Optional timestamp for the point.
-        /// </summary>
+        // Optional timestamp
         public DateTime? Timestamp { get; set; }
     }
 }

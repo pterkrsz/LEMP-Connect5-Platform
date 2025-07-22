@@ -8,18 +8,17 @@ using Microsoft.Extensions.Logging;
 
 namespace LEMP.Infrastructure.Services
 {
-    /// <summary>
-    /// Executes raw HTTP calls against the InfluxDB API for testing purposes.
-    /// </summary>
+
+    // Executes raw HTTP calls against the InfluxDB API for testing purposes
+
     public class InfluxRawTestService
     {
         private readonly IHttpClientFactory _factory;
         private readonly IConfiguration _configuration;
         private readonly ILogger<InfluxRawTestService> _logger;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="InfluxRawTestService"/> class.
-        /// </summary>
+        // Service dependencies are injected via constructor
+
         public InfluxRawTestService(IHttpClientFactory factory, IConfiguration configuration, ILogger<InfluxRawTestService> logger)
         {
             _factory = factory;
@@ -27,9 +26,8 @@ namespace LEMP.Infrastructure.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// Executes all raw HTTP tests.
-        /// </summary>
+
+        // Executes all raw HTTP tests
         public async Task RunAsync()
         {
             var client = _factory.CreateClient("Influx");
