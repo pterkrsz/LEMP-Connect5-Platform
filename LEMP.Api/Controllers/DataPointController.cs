@@ -11,17 +11,20 @@ using Microsoft.AspNetCore.Http;
 namespace LEMP.Api.Controllers
 {
     // Controller handling InfluxDB datapoint operations
+
     [ApiController]
     [Route("api/[controller]")]
     public class DataPointController : ControllerBase
     {
         private readonly InfluxDBClient _client;
 
+
         // InfluxDB client is injected via DI
         public DataPointController(InfluxDBClient client)
         {
             _client = client;
         }
+
         // Returns the latest datapoints for the given measurement
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -34,7 +37,9 @@ namespace LEMP.Api.Controllers
             }
 
             var sql = $"select * from {measurement} order by time desc limit {limit}";
+
             var rows = new List<object?[]>();
+
             await foreach (var row in _client.Query(query: sql))
             {
                 rows.Add(row);
@@ -76,6 +81,7 @@ namespace LEMP.Api.Controllers
                 point = point.SetTimestamp(dto.Timestamp.Value);
             }
 
+
             try
             {
                 await _client.WritePointAsync(point);
@@ -84,6 +90,7 @@ namespace LEMP.Api.Controllers
             {
                 return StatusCode((int)ex.StatusCode, ex.Message);
             }
+
 
             return CreatedAtAction(nameof(Get), new { measurement = dto.Measurement, limit = 1 }, null);
         }

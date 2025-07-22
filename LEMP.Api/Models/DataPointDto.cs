@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace LEMP.Api.Models
 {
+
     // Generic InfluxDB data point payload
     public class DataPointDto
     {

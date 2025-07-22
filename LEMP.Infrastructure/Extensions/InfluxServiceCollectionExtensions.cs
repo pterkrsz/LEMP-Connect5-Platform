@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LEMP.Infrastructure.Extensions
 {
+
     // Helpers for registering InfluxDB related services
     public static class InfluxServiceCollectionExtensions
     {
@@ -23,7 +24,9 @@ namespace LEMP.Infrastructure.Extensions
             return services;
         }
 
+
         // Registers HttpClient for raw InfluxDB requests
+
         public static IServiceCollection AddInfluxRawHttpClient(this IServiceCollection services, IConfiguration configuration)
         {
             var influx = configuration.GetSection("InfluxDB");
