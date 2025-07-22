@@ -6,33 +6,26 @@ using InfluxDB3.Client;
 using InfluxDB3.Client.Write;
 using LEMP.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 
 namespace LEMP.Api.Controllers
 {
-    /// <summary>
-    /// API endpoints for reading and writing InfluxDB datapoints.
-    /// </summary>
+    // Controller handling InfluxDB datapoint operations
+
     [ApiController]
     [Route("api/[controller]")]
     public class DataPointController : ControllerBase
     {
         private readonly InfluxDBClient _client;
 
-        /// <summary>
-        /// Initializes a new instance of <see cref="DataPointController"/>.
-        /// </summary>
-        /// <param name="client">InfluxDB client instance.</param>
+
+        // InfluxDB client is injected via DI
         public DataPointController(InfluxDBClient client)
         {
             _client = client;
         }
 
-        /// <summary>
-        /// Gets the latest datapoints for a measurement.
-        /// </summary>
-        /// <param name="measurement">Measurement name.</param>
-        /// <param name="limit">Number of points to return.</param>
-        /// <returns>Collection of rows from InfluxDB.</returns>
+        // Returns the latest datapoints for the given measurement
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -44,7 +37,9 @@ namespace LEMP.Api.Controllers
             }
 
             var sql = $"select * from {measurement} order by time desc limit {limit}";
-            var rows = new List<object[]>();
+
+            var rows = new List<object?[]>();
+
             await foreach (var row in _client.Query(query: sql))
             {
                 rows.Add(row);
@@ -53,10 +48,7 @@ namespace LEMP.Api.Controllers
             return Ok(rows);
         }
 
-        /// <summary>
-        /// Writes a datapoint to InfluxDB.
-        /// </summary>
-        /// <param name="dto">Datapoint payload.</param>
+        // Writes a datapoint to InfluxDB
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -89,7 +81,17 @@ namespace LEMP.Api.Controllers
                 point = point.SetTimestamp(dto.Timestamp.Value);
             }
 
-            await _client.WritePointAsync(point);
+
+            try
+            {
+                await _client.WritePointAsync(point);
+            }
+            catch (InfluxDBApiException ex)
+            {
+                return StatusCode((int)ex.StatusCode, ex.Message);
+            }
+
+
             return CreatedAtAction(nameof(Get), new { measurement = dto.Measurement, limit = 1 }, null);
         }
     }
