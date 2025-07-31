@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\LEMP.Application\LEMP.Application.csproj" />
     <ProjectReference Include="..\LEMP.Infrastructure\LEMP.Infrastructure.csproj" />
+    <ProjectReference Include="..\LEMP.Domain\LEMP.Domain.csproj" />
   </ItemGroup>
 
 </Project>
