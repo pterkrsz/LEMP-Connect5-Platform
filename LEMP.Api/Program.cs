@@ -16,6 +16,7 @@ builder.Services.AddInfluxRawHttpClient(builder.Configuration);
 
 // Service hosting raw HTTP tests if needed.
 builder.Services.AddTransient<InfluxRawTestService>();
+builder.Services.AddSingleton<LEMP.Application.Control.ControlEngine>();
 
 var app = builder.Build();
 
