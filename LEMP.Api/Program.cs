@@ -16,7 +16,8 @@ builder.Services.AddInfluxRawHttpClient(builder.Configuration);
 
 // Service hosting raw HTTP tests if needed.
 builder.Services.AddTransient<InfluxRawTestService>();
-builder.Services.AddSingleton<LEMP.Application.Control.ControlEngine>();
+// Background service pushing smart meter measurements to InfluxDB.
+builder.Services.AddHostedService<SmartMeterInfluxForwarder>();
 
 var app = builder.Build();
 
