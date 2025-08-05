@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using LEMP.Application.Modbus;
 using LEMP.Domain.SmartMeter;
 
 namespace LEMP.Application.SmartMeter;

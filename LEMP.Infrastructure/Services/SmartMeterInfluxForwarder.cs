@@ -1,21 +1,19 @@
 using System;
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using LEMP.Application.SmartMeter;
 using LEMP.Domain.SmartMeter;
+using LEMP.Application.Modbus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace LEMP.Infrastructure.Services;
 
-/// <summary>
-/// Background service that periodically reads the SDM230 smart meter and
-/// forwards the measurements to InfluxDB using the line protocol.
-/// </summary>
 public class SmartMeterInfluxForwarder : BackgroundService
 {
     private readonly IHttpClientFactory _factory;
@@ -36,14 +34,22 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var reader = new ModbusRTUReader(_serialPort);
+        using var reader = new  ModbusRTUReader(_serialPort);
         var adapter = new SmartMeterAdapter(reader);
 
         var client = _factory.CreateClient("Influx");
-        var bucket = _configuration["InfluxDB:Bucket"] ?? string.Empty;
-        var org = _configuration["InfluxDB:Org"] ?? string.Empty;
+        var token = _configuration["InfluxDB:Token"];
+        var db = _configuration["InfluxDB:Bucket"] ?? "default";
         var node = _configuration["InfluxDB:NodeId"] ?? "node0";
-        var url = $"/api/v3/write_lp?db={Uri.EscapeDataString(bucket)}&org={Uri.EscapeDataString(org)}&precision=ns";
+        var url = $"/api/v3/write_lp?db={Uri.EscapeDataString(db)}&precision=nanosecond&accept_partial=true";
+
+
+        client.DefaultRequestHeaders.Clear();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -52,25 +58,19 @@ public class SmartMeterInfluxForwarder : BackgroundService
                 var state = adapter.ReadSmartMeterState();
                 if (state.SmartMeterAlive)
                 {
-                    _logger.LogInformation(
-                        "Smart meter: Voltage={Voltage}V, Current={Current}A, ActivePower={ActivePower}W, ApparentPower={ApparentPower}VA, ReactivePower={ReactivePower}var, PowerFactor={PowerFactor}, Frequency={Frequency}Hz, ImportedActiveEnergy={ImportedActiveEnergy}kWh, ExportedActiveEnergy={ExportedActiveEnergy}kWh, ImportedReactiveEnergy={ImportedReactiveEnergy}kvarh, ExportedReactiveEnergy={ExportedReactiveEnergy}kvarh, TotalActiveEnergy={TotalActiveEnergy}kWh",
-                        state.VoltageLineToNeutral,
-                        state.Current,
-                        state.ActivePower,
-                        state.ApparentPower,
-                        state.ReactivePower,
-                        state.PowerFactor,
-                        state.Frequency,
-                        state.ImportedActiveEnergy,
-                        state.ExportedActiveEnergy,
-                        state.ImportedReactiveEnergy,
-                        state.ExportedReactiveEnergy,
-                        state.TotalActiveEnergy);
-
                     var line = BuildLineProtocol(node, state);
+                    _logger.LogInformation("Sending Line Protocol: {Line}", line);
+
                     var content = new StringContent(line, Encoding.UTF8, "text/plain");
                     var res = await client.PostAsync(url, content, stoppingToken);
-                    _logger.LogInformation("Forwarded smart meter data -> {Status}", res.StatusCode);
+
+                    _logger.LogInformation("Forwarded smart meter data -> {StatusCode}", res.StatusCode);
+
+                    if (!res.IsSuccessStatusCode)
+                    {
+                        var body = await res.Content.ReadAsStringAsync(stoppingToken);
+                        _logger.LogWarning("Influx error response: {Body}", body);
+                    }
                 }
                 else
                 {
@@ -84,12 +84,9 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(0.01), stoppingToken);
             }
-            catch (TaskCanceledException)
-            {
-                // ignore cancellation during delay
-            }
+            catch (TaskCanceledException) { }
         }
     }
 
@@ -97,6 +94,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
     {
         var inv = CultureInfo.InvariantCulture;
         var sb = new StringBuilder();
+
         sb.Append("smartmeter,node=").Append(node).Append(' ');
         sb.Append("voltage=").Append(s.VoltageLineToNeutral.ToString(inv)).Append(',');
         sb.Append("current=").Append(s.Current.ToString(inv)).Append(',');
@@ -109,10 +107,10 @@ public class SmartMeterInfluxForwarder : BackgroundService
         sb.Append("exportedActiveEnergy=").Append(s.ExportedActiveEnergy.ToString(inv)).Append(',');
         sb.Append("importedReactiveEnergy=").Append(s.ImportedReactiveEnergy.ToString(inv)).Append(',');
         sb.Append("exportedReactiveEnergy=").Append(s.ExportedReactiveEnergy.ToString(inv)).Append(',');
-        sb.Append("totalActiveEnergy=").Append(s.TotalActiveEnergy.ToString(inv));
-        sb.Append(' ');
+        sb.Append("totalActiveEnergy=").Append(s.TotalActiveEnergy.ToString(inv)).Append(' ');
         sb.Append(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000);
+
+
         return sb.ToString();
     }
 }
-

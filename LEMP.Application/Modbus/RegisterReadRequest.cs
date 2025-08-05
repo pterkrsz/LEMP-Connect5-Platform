@@ -1,6 +1,6 @@
 using System;
 
-namespace LEMP.Application.SmartMeter;
+namespace LEMP.Application.Modbus;
 
 public class RegisterReadRequest<T>
 {

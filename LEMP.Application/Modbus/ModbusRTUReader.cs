@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.IO.Ports;
 
-namespace LEMP.Application.SmartMeter;
+namespace LEMP.Application.Modbus;
 
 public class ModbusRTUReader : IDisposable
 {
