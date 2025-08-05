@@ -31,7 +31,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
         _factory = factory;
         _configuration = configuration;
         _logger = logger;
-        _serialPort = _configuration["SmartMeter:SerialPort"] ?? "/dev/ttyUSB0";
+        _serialPort = _configuration["SmartMeter:SerialPort"] ?? "COM9";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -52,6 +52,21 @@ public class SmartMeterInfluxForwarder : BackgroundService
                 var state = adapter.ReadSmartMeterState();
                 if (state.SmartMeterAlive)
                 {
+                    _logger.LogInformation(
+                        "Smart meter: Voltage={Voltage}V, Current={Current}A, ActivePower={ActivePower}W, ApparentPower={ApparentPower}VA, ReactivePower={ReactivePower}var, PowerFactor={PowerFactor}, Frequency={Frequency}Hz, ImportedActiveEnergy={ImportedActiveEnergy}kWh, ExportedActiveEnergy={ExportedActiveEnergy}kWh, ImportedReactiveEnergy={ImportedReactiveEnergy}kvarh, ExportedReactiveEnergy={ExportedReactiveEnergy}kvarh, TotalActiveEnergy={TotalActiveEnergy}kWh",
+                        state.VoltageLineToNeutral,
+                        state.Current,
+                        state.ActivePower,
+                        state.ApparentPower,
+                        state.ReactivePower,
+                        state.PowerFactor,
+                        state.Frequency,
+                        state.ImportedActiveEnergy,
+                        state.ExportedActiveEnergy,
+                        state.ImportedReactiveEnergy,
+                        state.ExportedReactiveEnergy,
+                        state.TotalActiveEnergy);
+
                     var line = BuildLineProtocol(node, state);
                     var content = new StringContent(line, Encoding.UTF8, "text/plain");
                     var res = await client.PostAsync(url, content, stoppingToken);
