@@ -3,7 +3,7 @@
 ##  English
 
 This project is a modular, scalable REST API-based system designed for local energy monitoring and control using the RevPi Connect 5 industrial computer.
-It supports data collection from smart meters, inverters, and battery systems via RS485, and is capable of forwarding timestamped measurements to external systems like KEP over HTTPS.
+It supports data collection from smart meters via RS485 and forwards timestamped measurements to external systems like KEP over HTTPS.
 
 ### 🔧 Key Features
 
@@ -57,7 +57,7 @@ Ecocell Solar Energy – Developed by Peter Kresz
 ##  Magyar
 
 Ez a projekt egy moduláris, skálázható, REST API-alapú rendszer, amelyet a RevPi Connect 5 ipari számítógépre terveztünk helyi energiamenedzsment céljából.
-A rendszer RS485-ön keresztül gyűjt adatokat okosmérőkből, inverterekből és akkumulátorokból, majd időbélyeggel ellátva továbbítja őket KEP kompatibilis rendszer felé HTTPS-en keresztül JSON formátumban.
+A rendszer RS485-ön keresztül gyűjt adatokat okosmérőkből, majd időbélyeggel ellátva továbbítja őket KEP kompatibilis rendszer felé HTTPS-en keresztül JSON formátumban.
 
 ### 🔧 Fő funkciók
 
