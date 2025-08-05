@@ -66,6 +66,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
                         state.ImportedReactiveEnergy,
                         state.ExportedReactiveEnergy,
                         state.TotalActiveEnergy);
+
                     var line = BuildLineProtocol(node, state);
                     var content = new StringContent(line, Encoding.UTF8, "text/plain");
                     var res = await client.PostAsync(url, content, stoppingToken);
