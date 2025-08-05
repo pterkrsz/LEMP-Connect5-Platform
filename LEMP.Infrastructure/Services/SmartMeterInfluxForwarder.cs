@@ -31,7 +31,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
         _factory = factory;
         _configuration = configuration;
         _logger = logger;
-        _serialPort = _configuration["SmartMeter:SerialPort"] ?? "/dev/ttyUSB0";
+        _serialPort = _configuration["SmartMeter:SerialPort"] ?? "COM9";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
