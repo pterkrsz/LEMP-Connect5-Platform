@@ -20,10 +20,7 @@ namespace LEMP.Api.Controllers
             _client = client;
         }
 
-        /// <summary>
-        /// Queries recent smart meter measurements from InfluxDB.
-        /// </summary>
-        /// <param name="limit">Maximum number of rows to return.</param>
+
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> Get([FromQuery] int limit = 10)

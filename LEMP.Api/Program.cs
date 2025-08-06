@@ -10,7 +10,6 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// JWT konfiguráció
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "NagyonTitkosKulcsValtoztasdMeg123";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LEMP.API";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "KEP.Client";
@@ -34,14 +33,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization(); // RBAC támogatás
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "LEMP API", Version = "v1" });
-
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
@@ -50,7 +48,6 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
     });
-
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -69,11 +66,14 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddInfluxDbClient(builder.Configuration);
 builder.Services.AddInfluxRawHttpClient(builder.Configuration);
+builder.Services.AddHttpClient("Influx", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:8181");
+});
 
-// Service hosting raw HTTP tests if needed.
 builder.Services.AddTransient<InfluxRawTestService>();
-// Background service pushing smart meter measurements to InfluxDB.
 builder.Services.AddHostedService<SmartMeterInfluxForwarder>();
+builder.Services.AddHostedService<AuditLogForwarder>();
 
 var app = builder.Build();
 
@@ -84,11 +84,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication(); // Fontos: Authentication mindig Authorization előtt
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.UseMiddleware<RequestAuditMiddleware>();
-
 app.MapControllers();
-
 app.Run();

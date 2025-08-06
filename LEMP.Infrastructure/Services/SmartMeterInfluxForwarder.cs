@@ -59,17 +59,17 @@ public class SmartMeterInfluxForwarder : BackgroundService
                 if (state.SmartMeterAlive)
                 {
                     var line = BuildLineProtocol(node, state);
-                    _logger.LogInformation("Sending Line Protocol: {Line}", line);
+                    
 
                     var content = new StringContent(line, Encoding.UTF8, "text/plain");
                     var res = await client.PostAsync(url, content, stoppingToken);
 
-                    _logger.LogInformation("Forwarded smart meter data -> {StatusCode}", res.StatusCode);
+                    
 
                     if (!res.IsSuccessStatusCode)
                     {
                         var body = await res.Content.ReadAsStringAsync(stoppingToken);
-                        _logger.LogWarning("Influx error response: {Body}", body);
+                        
                     }
                 }
                 else
@@ -84,7 +84,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(0.01), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
             catch (TaskCanceledException) { }
         }
