@@ -4,13 +4,17 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// JWT konfigur·ciÛ
+// JWT konfigur√°ci√≥
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "NagyonTitkosKulcsValtoztasdMeg123";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LEMP.API";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "KEP.Client";
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -23,11 +27,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            NameClaimType = ClaimTypes.Name,
+            RoleClaimType = ClaimTypes.Role
         };
     });
 
-builder.Services.AddAuthorization(); // RBAC t·mogat·s
+builder.Services.AddAuthorization(); // RBAC t√°mogat√°s
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -38,10 +44,10 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
-        Description = "JWT token megad·sa (Bearer <token>)",
+        Description = "JWT token megad√°sa (Bearer <token>)",
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
-        Scheme = "bearer"
+        Scheme = "bearer",
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -52,7 +58,7 @@ builder.Services.AddSwaggerGen(c =>
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
+                    Id = "Bearer",
                 }
             },
             Array.Empty<string>()
@@ -77,7 +83,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication(); // Fontos: Authentication mindig Authorization elıtt
+app.UseAuthentication(); // Fontos: Authentication mindig Authorization el≈ëtt
 app.UseAuthorization();
 
 app.MapControllers();
