@@ -1,5 +1,6 @@
 using LEMP.Infrastructure.Extensions;
 using LEMP.Infrastructure.Services;
+using LEMP.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -85,6 +86,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication(); // Fontos: Authentication mindig Authorization előtt
 app.UseAuthorization();
+
+app.UseMiddleware<RequestAuditMiddleware>();
 
 app.MapControllers();
 
