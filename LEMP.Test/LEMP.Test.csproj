@@ -18,6 +18,7 @@
     <ProjectReference Include="..\LEMP.Application\LEMP.Application.csproj" />
     <ProjectReference Include="..\LEMP.Domain\LEMP.Domain.csproj" />
     <ProjectReference Include="..\LEMP.Infrastructure\LEMP.Infrastructure.csproj" />
+    <ProjectReference Include="..\LEMP.Api\LEMP.Api.csproj" />
   </ItemGroup>
 
 </Project>
