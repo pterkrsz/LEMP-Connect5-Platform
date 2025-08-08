@@ -27,6 +27,8 @@ public class AuditLogController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Get([FromQuery] int limit = 100)
     {
+        _logger.LogInformation("Fetching latest {Count} audit logs", limit);
+
         var sql = $"SELECT * FROM auditlog ORDER BY time DESC LIMIT {limit}";
         var rows = new List<object?[]>();
 
@@ -48,6 +50,7 @@ public class AuditLogController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError, ex.ToString());
         }
 
+        _logger.LogInformation("Returning {Count} audit log entries", rows.Count);
         return Ok(rows);
     }
 }

@@ -6,6 +6,7 @@ using InfluxDB3.Client;
 using LEMP.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace LEMP.Api.Controllers
 {
@@ -14,12 +15,13 @@ namespace LEMP.Api.Controllers
     public class SmartMeterController : ControllerBase
     {
         private readonly InfluxDBClient _client;
+        private readonly ILogger<SmartMeterController> _logger;
 
-        public SmartMeterController(InfluxDBClient client)
+        public SmartMeterController(InfluxDBClient client, ILogger<SmartMeterController> logger)
         {
             _client = client;
+            _logger = logger;
         }
-
 
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
@@ -27,6 +29,8 @@ namespace LEMP.Api.Controllers
         {
             if (limit <= 0)
                 limit = 1;
+
+            _logger.LogInformation("Fetching {Limit} smart meter readings", limit);
 
             var sql = $"""
                 SELECT
@@ -77,12 +81,14 @@ namespace LEMP.Api.Controllers
                 }
                 catch (Exception ex)
                 {
-                    // elnyeljük az esetleges konverziós hibát, logolhatod is ha kell
+                    _logger.LogWarning(ex, "Failed to parse smart meter row");
                     continue;
                 }
             }
 
+            _logger.LogInformation("Returning {Count} smart meter readings", result.Count);
             return Ok(result);
         }
     }
 }
+
