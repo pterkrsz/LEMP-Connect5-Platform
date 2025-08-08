@@ -34,7 +34,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var reader = new  ModbusRTUReader(_serialPort);
+        ModbusRTUReader reader = new(_serialPort);
         var adapter = new SmartMeterAdapter(reader);
 
         var client = _factory.CreateClient("Influx");
@@ -51,42 +51,60 @@ public class SmartMeterInfluxForwarder : BackgroundService
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", token);
         }
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                var state = adapter.ReadSmartMeterState();
-                if (state.SmartMeterAlive)
+                try
                 {
-                    var line = BuildLineProtocol(node, state);
-                    
-
-                    var content = new StringContent(line, Encoding.UTF8, "text/plain");
-                    var res = await client.PostAsync(url, content, stoppingToken);
-
-                    
-
-                    if (!res.IsSuccessStatusCode)
+                    var state = adapter.ReadSmartMeterState();
+                    if (state.SmartMeterAlive)
                     {
-                        var body = await res.Content.ReadAsStringAsync(stoppingToken);
-                        
+                        var line = BuildLineProtocol(node, state);
+
+
+                        var content = new StringContent(line, Encoding.UTF8, "text/plain");
+                        var res = await client.PostAsync(url, content, stoppingToken);
+
+
+
+                        if (!res.IsSuccessStatusCode)
+                        {
+                            var body = await res.Content.ReadAsStringAsync(stoppingToken);
+
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Smart meter read failed; attempting to reconnect");
+                        try
+                        {
+                            reader.Dispose();
+                            reader = new ModbusRTUReader(_serialPort);
+                            adapter = new SmartMeterAdapter(reader);
+                            _logger.LogInformation("Smart meter connection re-established");
+                        }
+                        catch (Exception reconnectionException)
+                        {
+                            _logger.LogError(reconnectionException, "Failed to re-establish smart meter connection");
+                        }
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    _logger.LogWarning("Smart meter read failed");
+                    _logger.LogError(ex, "Error forwarding smart meter data");
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error forwarding smart meter data");
-            }
 
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
+                catch (TaskCanceledException) { }
             }
-            catch (TaskCanceledException) { }
+        }
+        finally
+        {
+            reader.Dispose();
         }
     }
 
