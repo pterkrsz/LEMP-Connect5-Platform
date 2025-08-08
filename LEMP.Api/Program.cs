@@ -7,8 +7,12 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) =>
+    configuration.ReadFrom.Configuration(context.Configuration));
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "NagyonTitkosKulcsValtoztasdMeg123";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LEMP.API";
@@ -83,6 +87,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms (User: {User})";
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("User", httpContext.User.Identity?.Name ?? "anonymous");
+        diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+        diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+    };
+});
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

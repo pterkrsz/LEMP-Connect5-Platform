@@ -6,6 +6,7 @@ using LEMP.Api.Models.Login;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Logging;
 
@@ -71,7 +72,7 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
-        _logger.LogInformation("Login endpoint called. Username: {Username}", request.Username);
+        _logger.LogInformation("Login attempt for user {Username}", request.Username);
 
         var usersSection = _config.GetSection("Users");
 
@@ -99,6 +100,8 @@ public class AuthController : ControllerBase
                     signingCredentials: creds
                 );
 
+                _logger.LogInformation("User {Username} authenticated", request.Username);
+
                 return Ok(new LoginResponse
                 {
                     Token = new JwtSecurityTokenHandler().WriteToken(token),
@@ -107,7 +110,7 @@ public class AuthController : ControllerBase
             }
         }
 
-        _logger.LogWarning("Login failed for user: {Username}", request.Username);
+        _logger.LogWarning("Invalid login attempt for user {Username}", request.Username);
         return Unauthorized("Invalid username or password");
     }
 }
