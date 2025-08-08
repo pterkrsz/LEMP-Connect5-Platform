@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
 
 namespace LEMP.Api.Controllers;
 
@@ -14,21 +15,44 @@ namespace LEMP.Api.Controllers;
 [Route("api/[controller]")]
 public class AccessTestController : ControllerBase
 {
+    private readonly ILogger<AccessTestController> _logger;
+
+    public AccessTestController(ILogger<AccessTestController> logger)
+    {
+        _logger = logger;
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpGet("admin-only")]
-    public IActionResult AdminAccess() => Ok("Ez csak az Admin szerepkörrel érhető el.");
+    public IActionResult AdminAccess()
+    {
+        _logger.LogInformation("AdminAccess endpoint called by user: {User}", User.Identity?.Name);
+        return Ok("Ez csak az Admin szerepkörrel érhető el.");
+    }
 
     [Authorize(Roles = "Operator")]
     [HttpGet("operator-access")]
-    public IActionResult OperatorAccess() => Ok("Ez csak az Operatornak szól.");
+    public IActionResult OperatorAccess()
+    {
+        _logger.LogInformation("OperatorAccess endpoint called by user: {User}", User.Identity?.Name);
+        return Ok("Ez csak az Operatornak szól.");
+    }
 
     [Authorize(Roles = "KEP")]
     [HttpGet("kep-endpoint")]
-    public IActionResult KepAccess() => Ok("Ez a KEP rendszernek van fenntartva.");
+    public IActionResult KepAccess()
+    {
+        _logger.LogInformation("KepAccess endpoint called by user: {User}", User.Identity?.Name);
+        return Ok("Ez a KEP rendszernek van fenntartva.");
+    }
 
     [Authorize(Roles = "Viewer")]
     [HttpGet("viewer")]
-    public IActionResult ViewerUI() => Ok("Ez a grafikus UI felülethez tartozik.");
+    public IActionResult ViewerUI()
+    {
+        _logger.LogInformation("ViewerUI endpoint called by user: {User}", User.Identity?.Name);
+        return Ok("Ez a grafikus UI felülethez tartozik.");
+    }
 }
 
 [ApiController]
@@ -36,21 +60,27 @@ public class AccessTestController : ControllerBase
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _config;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IConfiguration config)
+    public AuthController(IConfiguration config, ILogger<AuthController> logger)
     {
         _config = config;
+        _logger = logger;
     }
 
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
+        _logger.LogInformation("Login endpoint called. Username: {Username}", request.Username);
+
         var usersSection = _config.GetSection("Users");
 
         foreach (var user in usersSection.GetChildren())
         {
             if (user["Username"] == request.Username && user["Password"] == request.Password)
             {
+                _logger.LogInformation("Login successful for user: {Username}", request.Username);
+
                 var roles = user.GetSection("Roles").Get<string[]>() ?? Array.Empty<string>();
                 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
                 var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -77,6 +107,7 @@ public class AuthController : ControllerBase
             }
         }
 
+        _logger.LogWarning("Login failed for user: {Username}", request.Username);
         return Unauthorized("Invalid username or password");
     }
 }

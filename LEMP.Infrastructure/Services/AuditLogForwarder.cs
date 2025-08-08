@@ -30,8 +30,20 @@ public class AuditLogForwarder : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Ez a szolgáltatás most NEM küld heartbeat-et, amíg nem szükséges.
-        _logger.LogInformation("AuditLogForwarder initialized, but heartbeat disabled.");
-        await Task.CompletedTask;
+        _logger.LogWarning("[AuditLogForwarder] Service starting");
+        try
+        {
+            // Ez a szolgáltatás most NEM küld heartbeat-et, amíg nem szükséges.
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[AuditLogForwarder] Exception during execution");
+            throw;
+        }
+        finally
+        {
+            _logger.LogWarning("[AuditLogForwarder] Service stopping");
+        }
     }
 }
