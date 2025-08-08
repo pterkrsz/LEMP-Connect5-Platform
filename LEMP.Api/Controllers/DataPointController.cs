@@ -7,6 +7,7 @@ using InfluxDB3.Client.Write;
 using LEMP.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace LEMP.Api.Controllers
 {
@@ -17,12 +18,14 @@ namespace LEMP.Api.Controllers
     public class DataPointController : ControllerBase
     {
         private readonly InfluxDBClient _client;
+        private readonly ILogger<DataPointController> _logger;
 
 
         // InfluxDB client is injected via DI
-        public DataPointController(InfluxDBClient client)
+        public DataPointController(InfluxDBClient client, ILogger<DataPointController> logger)
         {
             _client = client;
+            _logger = logger;
         }
 
         // Returns the latest datapoints for the given measurement
@@ -36,6 +39,8 @@ namespace LEMP.Api.Controllers
                 return BadRequest("measurement query parameter is required");
             }
 
+            _logger.LogInformation("Fetching {Limit} datapoints from measurement {Measurement}", limit, measurement);
+
             var sql = $"select * from {measurement} order by time desc limit {limit}";
 
             var rows = new List<object?[]>();
@@ -45,6 +50,7 @@ namespace LEMP.Api.Controllers
                 rows.Add(row);
             }
 
+            _logger.LogInformation("Returning {Count} datapoints", rows.Count);
             return Ok(rows);
         }
 
@@ -58,6 +64,8 @@ namespace LEMP.Api.Controllers
             {
                 return BadRequest("Measurement is required");
             }
+
+            _logger.LogInformation("Writing datapoint to measurement {Measurement}", dto.Measurement);
 
             var point = PointData.Measurement(dto.Measurement);
             if (dto.Tags != null)
@@ -81,17 +89,17 @@ namespace LEMP.Api.Controllers
                 point = point.SetTimestamp(dto.Timestamp.Value);
             }
 
-
             try
             {
                 await _client.WritePointAsync(point);
             }
             catch (InfluxDBApiException ex)
             {
+                _logger.LogError(ex, "Error writing datapoint to InfluxDB");
                 return StatusCode((int)ex.StatusCode, ex.Message);
             }
 
-
+            _logger.LogInformation("Datapoint written successfully to {Measurement}", dto.Measurement);
             return CreatedAtAction(nameof(Get), new { measurement = dto.Measurement, limit = 1 }, null);
         }
     }
