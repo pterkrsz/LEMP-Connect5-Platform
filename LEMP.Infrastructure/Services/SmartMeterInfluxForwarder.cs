@@ -20,6 +20,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
     private readonly IConfiguration _configuration;
     private readonly ILogger<SmartMeterInfluxForwarder> _logger;
     private readonly string _serialPort;
+    private readonly int _pollingIntervalSeconds;
 
     public SmartMeterInfluxForwarder(
         IHttpClientFactory factory,
@@ -29,7 +30,10 @@ public class SmartMeterInfluxForwarder : BackgroundService
         _factory = factory;
         _configuration = configuration;
         _logger = logger;
-        _serialPort = _configuration["SmartMeter:SerialPort"] ?? "COM9";
+        _serialPort = _configuration["SmartMeter:SerialPort"]
+                     ?? throw new InvalidOperationException("SmartMeter:SerialPort is not configured");
+        _pollingIntervalSeconds = _configuration.GetValue<int?>("SmartMeter:PollingIntervalSeconds")
+                                  ?? throw new InvalidOperationException("SmartMeter:PollingIntervalSeconds is not configured");
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -39,8 +43,10 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
         var client = _factory.CreateClient("Influx");
         var token = _configuration["InfluxDB:Token"];
-        var db = _configuration["InfluxDB:Bucket"] ?? "default";
-        var node = _configuration["InfluxDB:NodeId"] ?? "node0";
+        var db = _configuration["InfluxDB:Bucket"]
+                 ?? throw new InvalidOperationException("InfluxDB:Bucket is not configured");
+        var node = _configuration["InfluxDB:NodeId"]
+                   ?? throw new InvalidOperationException("InfluxDB:NodeId is not configured");
         var url = $"/api/v3/write_lp?db={Uri.EscapeDataString(db)}&precision=nanosecond&accept_partial=true";
 
 
@@ -97,7 +103,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                    await Task.Delay(TimeSpan.FromSeconds(_pollingIntervalSeconds), stoppingToken);
                 }
                 catch (TaskCanceledException) { }
             }
