@@ -77,7 +77,7 @@ builder.Services.AddHttpClient("Influx", client =>
 
 builder.Services.AddTransient<InfluxRawTestService>();
 builder.Services.AddHostedService<SmartMeterInfluxForwarder>();
-builder.Services.AddHostedService<AuditLogForwarder>();
+
 
 var app = builder.Build();
 
