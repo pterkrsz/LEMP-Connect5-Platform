@@ -14,9 +14,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, services, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration));
 
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "NagyonTitkosKulcsValtoztasdMeg123";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "LEMP.API";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "KEP.Client";
+var jwtKey = builder.Configuration["Jwt:Key"]
+             ?? throw new InvalidOperationException("Jwt:Key is not configured");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]
+                ?? throw new InvalidOperationException("Jwt:Issuer is not configured");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+                 ?? throw new InvalidOperationException("Jwt:Audience is not configured");
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -70,10 +73,6 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddInfluxDbClient(builder.Configuration);
 builder.Services.AddInfluxRawHttpClient(builder.Configuration);
-builder.Services.AddHttpClient("Influx", client =>
-{
-    client.BaseAddress = new Uri("http://localhost:8181");
-});
 
 builder.Services.AddTransient<InfluxRawTestService>();
 builder.Services.AddHostedService<SmartMeterInfluxForwarder>();
