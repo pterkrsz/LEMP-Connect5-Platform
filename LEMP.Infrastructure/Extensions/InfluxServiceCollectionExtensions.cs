@@ -13,11 +13,13 @@ namespace LEMP.Infrastructure.Extensions
         // Registers InfluxDBClient for dependency injection
         public static IServiceCollection AddInfluxDbClient(this IServiceCollection services, IConfiguration configuration)
         {
-            var influx = configuration.GetSection("InfluxDB");
-            var host = influx["Host"] ?? "localhost";
-            var port = int.Parse(influx["Port"] ?? "8181");
-            var token = influx["Token"] ?? string.Empty;
-            var bucket = influx["Bucket"] ?? string.Empty;
+            var influx = configuration.GetRequiredSection("InfluxDB");
+            var host = influx["Host"] ?? throw new InvalidOperationException("InfluxDB:Host is not configured");
+            var port = influx.GetValue<int?>("Port")
+                       ?? throw new InvalidOperationException("InfluxDB:Port is not configured");
+            var token = influx["Token"];
+            var bucket = influx["Bucket"]
+                        ?? throw new InvalidOperationException("InfluxDB:Bucket is not configured");
 
             var url = new UriBuilder("http", host, port).ToString();
             services.AddSingleton(_ => new InfluxDBClient(url, token: token, database: bucket));
@@ -29,17 +31,21 @@ namespace LEMP.Infrastructure.Extensions
 
         public static IServiceCollection AddInfluxRawHttpClient(this IServiceCollection services, IConfiguration configuration)
         {
-            var influx = configuration.GetSection("InfluxDB");
-            var host = influx["Host"] ?? "localhost";
-            var port = int.Parse(influx["Port"] ?? "8181");
-            var token = influx["Token"] ?? string.Empty;
+            var influx = configuration.GetRequiredSection("InfluxDB");
+            var host = influx["Host"] ?? throw new InvalidOperationException("InfluxDB:Host is not configured");
+            var port = influx.GetValue<int?>("Port")
+                       ?? throw new InvalidOperationException("InfluxDB:Port is not configured");
+            var token = influx["Token"];
 
             var baseUri = new UriBuilder("http", host, port).Uri;
 
             services.AddHttpClient("Influx", c =>
             {
                 c.BaseAddress = baseUri;
-                c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
             });
 
             return services;
