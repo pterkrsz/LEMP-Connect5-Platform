@@ -18,17 +18,67 @@ public class ModbusRTUReader : IDisposable
         _port.Open();
     }
 
+    protected ModbusRTUReader(SerialPort port, bool openPort)
+    {
+        _port = port ?? throw new ArgumentNullException(nameof(port));
+
+        if (openPort && !_port.IsOpen)
+        {
+            _port.Open();
+        }
+
+        if (_port.IsOpen)
+        {
+            _port.ReadTimeout = 1000;
+            _port.WriteTimeout = 1000;
+        }
+    }
+
     public bool TryRead<T>(RegisterReadRequest<T> request)
     {
         try
         {
-            var frame = BuildFrame(request);
+            if (!TryReadRegisters(request.SlaveId, request.FunctionCode, request.StartAddress,
+                    request.RegisterCount, out var data))
+            {
+                return false;
+            }
+
+            var littleEndian = (byte[])data.Clone();
+            Array.Reverse(littleEndian);
+            T value = ConvertBytes<T>(littleEndian);
+            request.OnValue?.Invoke(value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public virtual bool TryReadRegisters(byte slaveId, byte functionCode, ushort startAddress, ushort registerCount,
+        out byte[] data)
+    {
+        data = Array.Empty<byte>();
+        try
+        {
+            if (registerCount == 0)
+            {
+                return false;
+            }
+
+            if ((functionCode == 3 || functionCode == 4) && registerCount > 125)
+            {
+                return false;
+            }
+
+            var frame = BuildFrame(slaveId, functionCode, startAddress, registerCount);
             _port.DiscardInBuffer();
             _port.Write(frame, 0, frame.Length);
 
-            int dataBytesLength = request.FunctionCode == 1 || request.FunctionCode == 2
-                ? (int)Math.Ceiling(request.RegisterCount / 8.0)
-                : request.RegisterCount * 2;
+            int dataBytesLength = functionCode == 1 || functionCode == 2
+                ? (int)Math.Ceiling(registerCount / 8.0)
+                : registerCount * 2;
             int responseLength = 5 + dataBytesLength;
             var response = new byte[responseLength];
             int bytesRead = 0;
@@ -40,43 +90,45 @@ public class ModbusRTUReader : IDisposable
                 bytesRead += read;
             }
 
-            if (response[0] != request.SlaveId || response[1] != request.FunctionCode)
+            if (response[0] != slaveId || response[1] != functionCode)
                 return false;
             if (!ValidateCrc(response))
                 return false;
 
-            byte[] data;
-            if (request.FunctionCode == 1 || request.FunctionCode == 2)
+            if (functionCode == 1 || functionCode == 2)
             {
-                data = new byte[] { response[3] };
+                data = new byte[dataBytesLength];
+                Array.Copy(response, 3, data, 0, dataBytesLength);
             }
             else
             {
                 var byteCount = response[2];
+                if (byteCount != dataBytesLength)
+                {
+                    return false;
+                }
                 data = new byte[byteCount];
                 Array.Copy(response, 3, data, 0, byteCount);
             }
 
-            Array.Reverse(data);
-            T value = ConvertBytes<T>(data);
-            request.OnValue?.Invoke(value);
             return true;
         }
         catch
         {
+            data = Array.Empty<byte>();
             return false;
         }
     }
 
-    private static byte[] BuildFrame<T>(RegisterReadRequest<T> request)
+    private static byte[] BuildFrame(byte slaveId, byte functionCode, ushort startAddress, ushort registerCount)
     {
         var frame = new byte[8];
-        frame[0] = request.SlaveId;
-        frame[1] = request.FunctionCode;
-        frame[2] = (byte)(request.StartAddress >> 8);
-        frame[3] = (byte)(request.StartAddress & 0xFF);
-        frame[4] = (byte)(request.RegisterCount >> 8);
-        frame[5] = (byte)(request.RegisterCount & 0xFF);
+        frame[0] = slaveId;
+        frame[1] = functionCode;
+        frame[2] = (byte)(startAddress >> 8);
+        frame[3] = (byte)(startAddress & 0xFF);
+        frame[4] = (byte)(registerCount >> 8);
+        frame[5] = (byte)(registerCount & 0xFF);
         var crc = CalculateCrc(frame, 6);
         frame[6] = crc[0];
         frame[7] = crc[1];
