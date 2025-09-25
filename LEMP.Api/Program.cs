@@ -76,6 +76,7 @@ builder.Services.AddInfluxRawHttpClient(builder.Configuration);
 
 builder.Services.AddTransient<InfluxRawTestService>();
 builder.Services.AddHostedService<SmartMeterInfluxForwarder>();
+builder.Services.AddHostedService<InverterInfluxForwarder>();
 
 
 var app = builder.Build();
