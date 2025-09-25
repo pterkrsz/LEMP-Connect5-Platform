@@ -18,6 +18,22 @@ public class ModbusRTUReader : IDisposable
         _port.Open();
     }
 
+    protected ModbusRTUReader(SerialPort port, bool openPort)
+    {
+        _port = port ?? throw new ArgumentNullException(nameof(port));
+
+        if (openPort && !_port.IsOpen)
+        {
+            _port.Open();
+        }
+
+        if (_port.IsOpen)
+        {
+            _port.ReadTimeout = 1000;
+            _port.WriteTimeout = 1000;
+        }
+    }
+
     public bool TryRead<T>(RegisterReadRequest<T> request)
     {
         try
@@ -40,7 +56,9 @@ public class ModbusRTUReader : IDisposable
         }
     }
 
-    public bool TryReadRegisters(byte slaveId, byte functionCode, ushort startAddress, ushort registerCount,
+
+    public virtual bool TryReadRegisters(byte slaveId, byte functionCode, ushort startAddress, ushort registerCount,
+
         out byte[] data)
     {
         data = Array.Empty<byte>();
