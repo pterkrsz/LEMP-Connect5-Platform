@@ -56,7 +56,9 @@ public class ModbusRTUReader : IDisposable
         }
     }
 
+
     public virtual bool TryReadRegisters(byte slaveId, byte functionCode, ushort startAddress, ushort registerCount,
+
         out byte[] data)
     {
         data = Array.Empty<byte>();
