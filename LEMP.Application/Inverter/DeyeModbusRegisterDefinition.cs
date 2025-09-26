@@ -23,10 +23,14 @@ public sealed class DeyeModbusRegisterDefinition
         DataType = dataType;
         Scale = scale;
         Unit = unit;
-        _normalizedDataType = dataType.Trim().ToLowerInvariant();
+        _dataType = ParseDataType(dataType);
+        if (_dataType == DeyeModbusDataType.Unknown)
+        {
+            throw new ArgumentException($"Unsupported inverter data type: {dataType}", nameof(dataType));
+        }
     }
 
-    private readonly string _normalizedDataType;
+    private readonly DeyeModbusDataType _dataType;
 
     public string Group { get; }
 
@@ -55,35 +59,108 @@ public sealed class DeyeModbusRegisterDefinition
             return false;
         }
 
-        try
-        {
-            var slice = rawData[..ByteLength];
+        var slice = rawData[..ByteLength];
 
-            value = _normalizedDataType switch
-            {
-                "uint16" => BinaryPrimitives.ReadUInt16BigEndian(slice),
-                "int16" => BinaryPrimitives.ReadInt16BigEndian(slice),
-                "uint32" => BinaryPrimitives.ReadUInt32BigEndian(slice),
-                "int32" => BinaryPrimitives.ReadInt32BigEndian(slice),
-                "single" or "float" or "float32" =>
-                    BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32BigEndian(slice)),
-                "double" or "float64" =>
-                    BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64BigEndian(slice)),
-                "bool" or "boolean" => slice[^1] != 0 ? 1d : 0d,
-                _ => double.NaN
-            };
-        }
-        catch
+        if (!TryReadRawValue(slice, out var rawValue))
         {
             return false;
         }
 
-        if (double.IsNaN(value) || double.IsInfinity(value))
+        value = rawValue * Scale;
+        return !double.IsNaN(value) && !double.IsInfinity(value);
+    }
+
+    private bool TryReadRawValue(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        return _dataType switch
+        {
+            DeyeModbusDataType.UInt16 => TryReadUInt16(data, out rawValue),
+            DeyeModbusDataType.Int16 => TryReadInt16(data, out rawValue),
+            DeyeModbusDataType.UInt32 => TryReadUInt32(data, out rawValue),
+            DeyeModbusDataType.Int32 => TryReadInt32(data, out rawValue),
+            _ => false
+        };
+    }
+
+    private bool TryReadUInt16(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 1 || data.Length < 2)
         {
             return false;
         }
 
-        value *= Scale;
+        rawValue = BinaryPrimitives.ReadUInt16BigEndian(data);
         return true;
+    }
+
+    private bool TryReadInt16(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 1 || data.Length < 2)
+        {
+            return false;
+        }
+
+        rawValue = BinaryPrimitives.ReadInt16BigEndian(data);
+        return true;
+    }
+
+    private bool TryReadUInt32(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 2 || data.Length < 4)
+        {
+            return false;
+        }
+
+        var highWord = BinaryPrimitives.ReadUInt16BigEndian(data);
+        var lowWord = BinaryPrimitives.ReadUInt16BigEndian(data[2..]);
+        rawValue = ((uint)highWord << 16) | lowWord;
+        return true;
+    }
+
+    private bool TryReadInt32(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 2 || data.Length < 4)
+        {
+            return false;
+        }
+
+        var highWord = BinaryPrimitives.ReadUInt16BigEndian(data);
+        var lowWord = BinaryPrimitives.ReadUInt16BigEndian(data[2..]);
+        var combined = ((uint)highWord << 16) | lowWord;
+        rawValue = unchecked((int)combined);
+        return true;
+    }
+
+    private static DeyeModbusDataType ParseDataType(string raw)
+    {
+        var normalized = raw.Trim().ToLowerInvariant();
+
+        return normalized switch
+        {
+            "uint16" => DeyeModbusDataType.UInt16,
+            "int16" => DeyeModbusDataType.Int16,
+            "uint32" => DeyeModbusDataType.UInt32,
+            "int32" => DeyeModbusDataType.Int32,
+            _ => DeyeModbusDataType.Unknown
+        };
+    }
+
+    private enum DeyeModbusDataType
+    {
+        Unknown = 0,
+        UInt16,
+        Int16,
+        UInt32,
+        Int32
     }
 }
