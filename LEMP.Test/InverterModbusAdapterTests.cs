@@ -74,11 +74,13 @@ public class InverterModbusAdapterTests
             foreach (var register in group.Value
                          .OrderBy(r => r.Key, StringComparer.OrdinalIgnoreCase))
             {
+
                 if (definitionsByGroup.TryGetValue(group.Key, out var definitions) &&
                     definitions.TryGetValue(register.Key, out var definition))
                 {
                     var scaledValue = register.Value * definition.Scale;
                     var formattedValue = scaledValue.ToString(CultureInfo.InvariantCulture);
+
                     var unit = definition.Unit;
                     var prefix = string.IsNullOrWhiteSpace(unit) || unit.Equals("null", StringComparison.OrdinalIgnoreCase)
                         ? string.Empty
@@ -93,6 +95,7 @@ public class InverterModbusAdapterTests
                 {
                     TestContext.WriteLine($"    {register.Key}: {register.Value.ToString(CultureInfo.InvariantCulture)}");
                 }
+
             }
         }
 
