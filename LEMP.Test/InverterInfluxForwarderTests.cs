@@ -108,7 +108,6 @@ public class InverterInfluxForwarderTests
         {
         }
     }
-
     [Test]
     public void BuildWriteUrl_AppendsOrgWhenProvided()
     {
@@ -126,4 +125,5 @@ public class InverterInfluxForwarderTests
         Assert.That(withoutOrg, Does.Contain("db=bucket%20one"));
         Assert.That(withoutOrg, Does.Not.Contain("org="));
     }
+
 }
