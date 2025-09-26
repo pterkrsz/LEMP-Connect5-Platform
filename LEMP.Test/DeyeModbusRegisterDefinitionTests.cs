@@ -71,34 +71,17 @@ public class DeyeModbusRegisterDefinitionTests
     }
 
     [Test]
-    public void TryConvert_ReadsFloat()
+    public void TryConvert_ReturnsFalseForUnexpectedLength()
     {
-        var definition = CreateDefinition("float", length: 2, scale: 1);
+        var definition = CreateDefinition("uint16", length: 2, scale: 1); // uint16 should only use 1 register
         Span<byte> raw = stackalloc byte[4];
-        var bits = BitConverter.SingleToInt32Bits(123.456f);
-        BinaryPrimitives.WriteInt32BigEndian(raw, bits);
 
         var success = definition.TryConvert(raw, out var value);
 
         Assert.Multiple(() =>
         {
-            Assert.That(success, Is.True);
-            Assert.That(value, Is.EqualTo(123.456f).Within(1e-6));
-        });
-    }
-
-    [Test]
-    public void TryConvert_ReadsBool()
-    {
-        var definition = CreateDefinition("bool", length: 1, scale: 1);
-        Span<byte> raw = stackalloc byte[] { 0x00, 0x01 };
-
-        var success = definition.TryConvert(raw, out var value);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(success, Is.True);
-            Assert.That(value, Is.EqualTo(1d));
+            Assert.That(success, Is.False);
+            Assert.That(value, Is.EqualTo(0d));
         });
     }
 
@@ -115,6 +98,12 @@ public class DeyeModbusRegisterDefinitionTests
             Assert.That(success, Is.False);
             Assert.That(value, Is.EqualTo(0d));
         });
+    }
+
+    [Test]
+    public void Constructor_ThrowsForUnsupportedType()
+    {
+        Assert.That(() => CreateDefinition("float", length: 2, scale: 1), Throws.ArgumentException);
     }
 
     private static DeyeModbusRegisterDefinition CreateDefinition(string dataType, ushort length, double scale) =>
