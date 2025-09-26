@@ -24,20 +24,44 @@ public static class DeyeModbusMapLoader
 
         var entries = JsonSerializer.Deserialize<List<DeyeRegisterEntry>>(json, options) ?? new List<DeyeRegisterEntry>();
 
-        var activeDefinitions = entries
-            .Where(e => e.IsActive && e.ParsedReadFunctionCode is 3 or 4)
-            .Where(e => e.ParsedReadAddress.HasValue && e.ParsedLength.HasValue && e.ParsedLength.Value > 0)
-            .Where(e => !string.IsNullOrWhiteSpace(e.Name) && !string.IsNullOrWhiteSpace(e.Group) && !string.IsNullOrWhiteSpace(e.DateType))
-            .Select(e => new DeyeModbusRegisterDefinition(
-                e.Group!.Trim(),
-                e.Name!.Trim(),
-                e.ParsedReadFunctionCode!.Value,
-                e.ParsedReadAddress!.Value,
-                e.ParsedLength!.Value,
-                e.DateType!.Trim(),
-                ParseScale(e.Factor),
-                string.IsNullOrWhiteSpace(e.Unit) ? null : e.Unit!.Trim()))
-            .ToList();
+        var activeDefinitions = new List<DeyeModbusRegisterDefinition>();
+
+        foreach (var entry in entries)
+        {
+            if (!entry.IsActive || entry.ParsedReadFunctionCode is not (3 or 4))
+            {
+                continue;
+            }
+
+            if (!entry.ParsedReadAddress.HasValue || !entry.ParsedLength.HasValue || entry.ParsedLength.Value <= 0)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.Name) || string.IsNullOrWhiteSpace(entry.Group) || string.IsNullOrWhiteSpace(entry.DateType))
+            {
+                continue;
+            }
+
+            try
+            {
+                var definition = new DeyeModbusRegisterDefinition(
+                    entry.Group!.Trim(),
+                    entry.Name!.Trim(),
+                    entry.ParsedReadFunctionCode!.Value,
+                    entry.ParsedReadAddress!.Value,
+                    entry.ParsedLength!.Value,
+                    entry.DateType!.Trim(),
+                    ParseScale(entry.Factor),
+                    string.IsNullOrWhiteSpace(entry.Unit) ? null : entry.Unit!.Trim());
+
+                activeDefinitions.Add(definition);
+            }
+            catch (ArgumentException)
+            {
+                // Ignore unsupported data types.
+            }
+        }
 
         return activeDefinitions
             .GroupBy(d => d.Group, StringComparer.OrdinalIgnoreCase)
