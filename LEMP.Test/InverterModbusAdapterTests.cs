@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
@@ -30,6 +31,14 @@ public class InverterModbusAdapterTests
         Assert.That(snapshot.InverterAlive, Is.True, "Minden Modbus lekérdezésnek sikeresnek kell lennie.");
         Assert.That(snapshot.Groups, Is.Not.Empty, "A lekérdezett csoportok listája nem lehet üres.");
 
+        var definitionsByGroup = groups.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value
+                .Where(def => !string.IsNullOrWhiteSpace(def.Name))
+                .GroupBy(def => def.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
+
         var expectedNamesByGroup = groups.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value
@@ -54,6 +63,44 @@ public class InverterModbusAdapterTests
         var totalExpected = expectedNamesByGroup.Values.Sum(v => v.Count);
         var totalActual = snapshot.Groups.Values.Sum(v => v.Count);
         Assert.That(totalActual, Is.EqualTo(totalExpected), "Minden aktív regiszterértéket vissza kell adni.");
+
+        TestContext.WriteLine("Olvasott inverter Modbus értékek:");
+
+        foreach (var group in snapshot.Groups
+                     .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            TestContext.WriteLine($"  Csoport: {group.Key}");
+
+            foreach (var register in group.Value
+                         .OrderBy(r => r.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                if (definitionsByGroup.TryGetValue(group.Key, out var definitions) &&
+                    definitions.TryGetValue(register.Key, out var definition))
+                {
+                    var scaledValue = FormatScaledValue(register.Value, definition);
+                    var unit = definition.Unit;
+                    var prefix = string.IsNullOrWhiteSpace(unit) || unit.Equals("null", StringComparison.OrdinalIgnoreCase)
+                        ? string.Empty
+                        : $" {unit}";
+                    var scaleSuffix = Math.Abs(definition.Scale - 1d) > double.Epsilon
+                        ? $" (scale: {definition.Scale.ToString("G15", CultureInfo.InvariantCulture)})"
+                        : string.Empty;
+                    var rawValue = FormatRawValue(register.Value, definition);
+                    var typeSuffix = string.IsNullOrWhiteSpace(definition.DataType)
+                        ? string.Empty
+                        : $", type: {definition.DataType}";
+                    var lengthSuffix = definition.Length > 0
+                        ? $", words: {definition.Length}"
+                        : string.Empty;
+
+                    TestContext.WriteLine($"    {register.Key}: {scaledValue}{prefix}{scaleSuffix} (raw: {rawValue}{typeSuffix}{lengthSuffix})");
+                }
+                else
+                {
+                    TestContext.WriteLine($"    {register.Key}: {register.Value.ToString(CultureInfo.InvariantCulture)}");
+                }
+            }
+        }
 
         var planField = typeof(InverterModbusAdapter).GetField("_plan", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.That(planField, Is.Not.Null, "Nem sikerült elérni az olvasási tervet reflexióval.");
@@ -90,5 +137,37 @@ public class InverterModbusAdapterTests
             Requests.Add((functionCode, startAddress, registerCount));
             return true;
         }
+    }
+
+    private static string FormatScaledValue(double value, DeyeModbusRegisterDefinition definition)
+    {
+        var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
+
+        return normalizedType switch
+        {
+            "bool" or "boolean" => Math.Abs(value) > 0.5 ? "true" : "false",
+            "single" or "float" or "float32" => ((float)value).ToString("G9", CultureInfo.InvariantCulture),
+            "double" or "float64" => value.ToString("G17", CultureInfo.InvariantCulture),
+            _ => value.ToString("G15", CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static string FormatRawValue(double scaledValue, DeyeModbusRegisterDefinition definition)
+    {
+        var scale = Math.Abs(definition.Scale) > double.Epsilon ? definition.Scale : 1d;
+        var baseValue = scaledValue / scale;
+        var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
+
+        return normalizedType switch
+        {
+            "int16" => ((short)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "uint16" => ((ushort)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "int32" => ((int)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "uint32" => ((uint)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "single" or "float" or "float32" => ((float)baseValue).ToString("G9", CultureInfo.InvariantCulture),
+            "double" or "float64" => baseValue.ToString("G17", CultureInfo.InvariantCulture),
+            "bool" or "boolean" => Math.Abs(baseValue) > 0.5 ? "true" : "false",
+            _ => baseValue.ToString("G15", CultureInfo.InvariantCulture)
+        };
     }
 }
