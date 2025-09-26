@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using LEMP.Application.Inverter;
 using LEMP.Application.Modbus;
+using LEMP.Domain.Inverter;
 using NUnit.Framework;
 
 namespace LEMP.Test;
@@ -102,7 +103,7 @@ public class InverterModbusAdapterTests
                 }
                 else
                 {
-                    TestContext.WriteLine($"    {register.Key}: {register.Value.ToString(CultureInfo.InvariantCulture)}");
+                    TestContext.WriteLine($"    {register.Key}: {register.Value.Value.ToString(CultureInfo.InvariantCulture)}");
                 }
 
             }
@@ -268,22 +269,21 @@ public class InverterModbusAdapterTests
         }
     }
 
-    private static string FormatScaledValue(double value, DeyeModbusRegisterDefinition definition)
+    private static string FormatScaledValue(InverterRegisterValue register, DeyeModbusRegisterDefinition definition)
     {
         var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
 
         return normalizedType switch
         {
-            "int16" or "int32" => Math.Round(value, MidpointRounding.AwayFromZero)
+            "int16" or "int32" => Math.Round(register.Value, MidpointRounding.AwayFromZero)
                 .ToString(CultureInfo.InvariantCulture),
-            _ => value.ToString("G15", CultureInfo.InvariantCulture)
+            _ => register.Value.ToString("G15", CultureInfo.InvariantCulture)
         };
     }
 
-    private static string FormatRawValue(double scaledValue, DeyeModbusRegisterDefinition definition)
+    private static string FormatRawValue(InverterRegisterValue register, DeyeModbusRegisterDefinition definition)
     {
-        var scale = Math.Abs(definition.Scale) > double.Epsilon ? definition.Scale : 1d;
-        var baseValue = scaledValue / scale;
+        var baseValue = register.RawValue;
         var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
 
         var valueString = normalizedType switch
