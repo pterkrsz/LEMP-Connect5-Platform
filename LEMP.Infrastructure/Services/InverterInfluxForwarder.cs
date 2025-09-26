@@ -219,6 +219,7 @@ public class InverterInfluxForwarder : BackgroundService
 
             foreach (var register in group.Value.OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
             {
+
                 var registerValue = register.Value;
                 var sb = new StringBuilder();
                 sb.Append("inverter");
@@ -231,12 +232,14 @@ public class InverterInfluxForwarder : BackgroundService
                 sb.Append(' ');
                 var first = true;
                 if (!TryAppendField(sb, ref first, "value", registerValue.Value, inv))
+
                 {
                     continue;
                 }
 
                 if (!double.IsNaN(registerValue.RawValue) && !double.IsInfinity(registerValue.RawValue))
                 {
+
                     TryAppendField(sb, ref first, "raw_value", registerValue.RawValue, inv);
                 }
 
@@ -244,6 +247,7 @@ public class InverterInfluxForwarder : BackgroundService
                 {
                     TryAppendField(sb, ref first, "scale", registerValue.Scale, inv);
                 }
+
 
                 sb.Append(' ').Append(timestamp);
                 lines.Add(sb.ToString());
