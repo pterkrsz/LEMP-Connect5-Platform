@@ -59,56 +59,92 @@ public sealed class DeyeModbusRegisterDefinition
             return false;
         }
 
-        try
-        {
-            var slice = rawData[..ByteLength];
-            if (!TryReadRawValue(slice, out var rawValue))
-            {
-                return false;
-            }
+        var slice = rawData[..ByteLength];
 
-            value = rawValue;
-        }
-        catch
+        if (!TryReadRawValue(slice, out var rawValue))
         {
+
             return false;
+
         }
 
-        if (double.IsNaN(value) || double.IsInfinity(value))
-        {
-            return false;
-        }
-
-        value *= Scale;
-        return true;
+        value = rawValue * Scale;
+        return !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     private bool TryReadRawValue(ReadOnlySpan<byte> data, out double rawValue)
     {
         rawValue = 0d;
 
-        var expectedByteLength = _dataType switch
+        return _dataType switch
         {
-            DeyeModbusDataType.UInt16 or DeyeModbusDataType.Int16 => 2,
-            DeyeModbusDataType.UInt32 or DeyeModbusDataType.Int32 => 4,
-            _ => 0
+            DeyeModbusDataType.UInt16 => TryReadUInt16(data, out rawValue),
+            DeyeModbusDataType.Int16 => TryReadInt16(data, out rawValue),
+            DeyeModbusDataType.UInt32 => TryReadUInt32(data, out rawValue),
+            DeyeModbusDataType.Int32 => TryReadInt32(data, out rawValue),
+            _ => false
         };
+    }
 
-        if (expectedByteLength == 0 || ByteLength != expectedByteLength || data.Length < expectedByteLength)
+    private bool TryReadUInt16(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 1 || data.Length < 2)
         {
             return false;
         }
 
-        rawValue = _dataType switch
-        {
-            DeyeModbusDataType.UInt16 => BinaryPrimitives.ReadUInt16BigEndian(data),
-            DeyeModbusDataType.Int16 => BinaryPrimitives.ReadInt16BigEndian(data),
-            DeyeModbusDataType.UInt32 => BinaryPrimitives.ReadUInt32BigEndian(data),
-            DeyeModbusDataType.Int32 => BinaryPrimitives.ReadInt32BigEndian(data),
-            _ => double.NaN
-        };
+        rawValue = BinaryPrimitives.ReadUInt16BigEndian(data);
+        return true;
+    }
 
-        return !double.IsNaN(rawValue) && !double.IsInfinity(rawValue);
+    private bool TryReadInt16(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 1 || data.Length < 2)
+        {
+            return false;
+        }
+
+        rawValue = BinaryPrimitives.ReadInt16BigEndian(data);
+        return true;
+    }
+
+
+    private bool TryReadUInt32(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 2 || data.Length < 4)
+        {
+            return false;
+        }
+
+        var highWord = BinaryPrimitives.ReadUInt16BigEndian(data);
+        var lowWord = BinaryPrimitives.ReadUInt16BigEndian(data[2..]);
+        rawValue = ((uint)highWord << 16) | lowWord;
+        return true;
+    }
+
+    private bool TryReadInt32(ReadOnlySpan<byte> data, out double rawValue)
+    {
+        rawValue = 0d;
+
+        if (Length != 2 || data.Length < 4)
+
+        {
+            return false;
+        }
+
+
+        var highWord = BinaryPrimitives.ReadUInt16BigEndian(data);
+        var lowWord = BinaryPrimitives.ReadUInt16BigEndian(data[2..]);
+        var combined = ((uint)highWord << 16) | lowWord;
+        rawValue = unchecked((int)combined);
+        return true;
+
     }
 
     private static DeyeModbusDataType ParseDataType(string raw)
