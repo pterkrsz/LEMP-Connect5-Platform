@@ -108,4 +108,22 @@ public class InverterInfluxForwarderTests
         {
         }
     }
+    [Test]
+    public void BuildWriteUrl_AppendsOrgWhenProvided()
+    {
+        var method = typeof(InverterInfluxForwarder)
+            .GetMethod("BuildWriteUrl", BindingFlags.Static | BindingFlags.NonPublic);
+
+        Assert.That(method, Is.Not.Null);
+
+        var withOrg = (string)method!.Invoke(null, new object?[] { "bucket one", "org id" })!;
+        var withoutOrg = (string)method.Invoke(null, new object?[] { "bucket one", null })!;
+
+        Assert.That(withOrg, Does.Contain("org="));
+        Assert.That(withOrg, Does.Contain("db=bucket%20one"));
+        Assert.That(withOrg, Does.Contain("org=org%20id"));
+        Assert.That(withoutOrg, Does.Contain("db=bucket%20one"));
+        Assert.That(withoutOrg, Does.Not.Contain("org="));
+    }
+
 }

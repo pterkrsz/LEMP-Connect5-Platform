@@ -83,9 +83,10 @@ public class InverterInfluxForwarder : BackgroundService
         var token = _configuration["InfluxDB:Token"];
         var db = _configuration["InfluxDB:Bucket"]
                  ?? throw new InvalidOperationException("InfluxDB:Bucket is not configured");
+        var org = _configuration["InfluxDB:Org"];
         var node = _configuration["InfluxDB:NodeId"]
                    ?? throw new InvalidOperationException("InfluxDB:NodeId is not configured");
-        var url = $"/api/v3/write_lp?db={Uri.EscapeDataString(db)}&precision=nanosecond&accept_partial=true";
+        var url = BuildWriteUrl(db, org);
 
         client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -542,6 +543,24 @@ public class InverterInfluxForwarder : BackgroundService
 
     private static string ResolvePath(string path) =>
         Path.IsPathRooted(path) ? path : Path.Combine(AppContext.BaseDirectory, path);
+
+    private static string BuildWriteUrl(string bucket, string? org)
+    {
+        var builder = new StringBuilder("/api/v3/write_lp?", 64);
+        builder
+            .Append("db=")
+            .Append(Uri.EscapeDataString(bucket))
+            .Append("&precision=nanosecond&accept_partial=true");
+
+        if (!string.IsNullOrWhiteSpace(org))
+        {
+            builder
+                .Append("&org=")
+                .Append(Uri.EscapeDataString(org));
+        }
+
+        return builder.ToString();
+    }
 
     private sealed class DeyeJsonRow
     {
