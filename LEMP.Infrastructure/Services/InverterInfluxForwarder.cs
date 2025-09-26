@@ -217,38 +217,37 @@ public class InverterInfluxForwarder : BackgroundService
                 continue;
             }
 
-            var sb = new StringBuilder();
-            sb.Append("inverter");
-            sb.Append(",node=").Append(EscapeTagValue(node));
-            sb.Append(",group=").Append(EscapeTagValue(group.Key));
-            sb.Append(' ');
-
-            bool first = true;
-            foreach (var field in group.Value.OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
+            foreach (var register in group.Value.OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
             {
-                if (double.IsNaN(field.Value) || double.IsInfinity(field.Value))
+                var registerValue = register.Value;
+                var sb = new StringBuilder();
+                sb.Append("inverter");
+                sb.Append(",node=").Append(EscapeTagValue(node));
+                sb.Append(",group=").Append(EscapeTagValue(group.Key));
+                sb.Append(",register=").Append(EscapeTagValue(register.Key));
+                AppendOptionalTag(sb, "data_type", registerValue.DataType);
+                AppendOptionalTag(sb, "unit", registerValue.Unit);
+
+                sb.Append(' ');
+                var first = true;
+                if (!TryAppendField(sb, ref first, "value", registerValue.Value, inv))
                 {
                     continue;
                 }
 
-                if (!first)
+                if (!double.IsNaN(registerValue.RawValue) && !double.IsInfinity(registerValue.RawValue))
                 {
-                    sb.Append(',');
+                    TryAppendField(sb, ref first, "raw_value", registerValue.RawValue, inv);
                 }
 
-                sb.Append(EscapeFieldKey(field.Key));
-                sb.Append('=');
-                sb.Append(field.Value.ToString(inv));
-                first = false;
-            }
+                if (!double.IsNaN(registerValue.Scale) && !double.IsInfinity(registerValue.Scale))
+                {
+                    TryAppendField(sb, ref first, "scale", registerValue.Scale, inv);
+                }
 
-            if (first)
-            {
-                continue;
+                sb.Append(' ').Append(timestamp);
+                lines.Add(sb.ToString());
             }
-
-            sb.Append(' ').Append(timestamp);
-            lines.Add(sb.ToString());
         }
 
         return lines;
@@ -256,6 +255,21 @@ public class InverterInfluxForwarder : BackgroundService
 
     private static string EscapeTagValue(string value) =>
         value.Replace("\\", "\\\\").Replace(",", "\\,").Replace(" ", "\\ ").Replace("=", "\\=");
+
+    private static void AppendOptionalTag(StringBuilder sb, string tagName, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (string.Equals(value, "null", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        sb.Append(',').Append(tagName).Append('=').Append(EscapeTagValue(value));
+    }
 
     private static string EscapeFieldKey(string key)
     {
@@ -279,6 +293,25 @@ public class InverterInfluxForwarder : BackgroundService
 
         var result = sb.ToString().Trim('_');
         return string.IsNullOrEmpty(result) ? "value" : result;
+    }
+
+    private static bool TryAppendField(StringBuilder sb, ref bool first, string fieldName, double value, CultureInfo inv)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+        {
+            return false;
+        }
+
+        if (!first)
+        {
+            sb.Append(',');
+        }
+
+        sb.Append(EscapeFieldKey(fieldName));
+        sb.Append('=');
+        sb.Append(value.ToString(inv));
+        first = false;
+        return true;
     }
 
     private static string ResolvePath(string path) =>

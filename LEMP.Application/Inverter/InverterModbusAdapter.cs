@@ -34,7 +34,7 @@ public class InverterModbusAdapter
             Timestamp = DateTimeOffset.UtcNow
         };
 
-        var valuesByGroup = new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+        var valuesByGroup = new Dictionary<string, Dictionary<string, InverterRegisterValue>>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var batch in _plan)
         {
@@ -69,11 +69,11 @@ public class InverterModbusAdapter
 
                 if (!valuesByGroup.TryGetValue(batch.Group, out var groupValues))
                 {
-                    groupValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                    groupValues = new Dictionary<string, InverterRegisterValue>(StringComparer.OrdinalIgnoreCase);
                     valuesByGroup[batch.Group] = groupValues;
                 }
 
-                groupValues[slice.Definition.Name] = value;
+                groupValues[slice.Definition.Name] = CreateRegisterValue(slice.Definition, value);
             }
         }
 
@@ -131,6 +131,32 @@ public class InverterModbusAdapter
         }
 
         return batches;
+    }
+
+    private static InverterRegisterValue CreateRegisterValue(DeyeModbusRegisterDefinition definition, double scaledValue)
+    {
+        var scale = definition.Scale;
+        double rawValue;
+        if (Math.Abs(scale) > double.Epsilon)
+        {
+            rawValue = scaledValue / scale;
+        }
+        else
+        {
+            rawValue = scaledValue;
+        }
+
+        if (double.IsNaN(rawValue) || double.IsInfinity(rawValue))
+        {
+            rawValue = scaledValue;
+        }
+
+        return new InverterRegisterValue(
+            scaledValue,
+            rawValue,
+            definition.DataType,
+            definition.Scale,
+            definition.Unit);
     }
 
     private sealed class ReadBatch
