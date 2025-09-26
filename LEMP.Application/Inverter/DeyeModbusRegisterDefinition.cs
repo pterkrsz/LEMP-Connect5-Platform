@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 
 namespace LEMP.Application.Inverter;
 
@@ -54,21 +55,21 @@ public sealed class DeyeModbusRegisterDefinition
             return false;
         }
 
-        Span<byte> buffer = stackalloc byte[ByteLength];
-        rawData[..ByteLength].CopyTo(buffer);
-        buffer.Reverse();
-
         try
         {
+            var slice = rawData[..ByteLength];
+
             value = _normalizedDataType switch
             {
-                "uint16" => BitConverter.ToUInt16(buffer),
-                "int16" => BitConverter.ToInt16(buffer),
-                "uint32" => BitConverter.ToUInt32(buffer),
-                "int32" => BitConverter.ToInt32(buffer),
-                "single" or "float" or "float32" => BitConverter.ToSingle(buffer),
-                "double" or "float64" => BitConverter.ToDouble(buffer),
-                "bool" or "boolean" => buffer[^1] != 0 ? 1d : 0d,
+                "uint16" => BinaryPrimitives.ReadUInt16BigEndian(slice),
+                "int16" => BinaryPrimitives.ReadInt16BigEndian(slice),
+                "uint32" => BinaryPrimitives.ReadUInt32BigEndian(slice),
+                "int32" => BinaryPrimitives.ReadInt32BigEndian(slice),
+                "single" or "float" or "float32" =>
+                    BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32BigEndian(slice)),
+                "double" or "float64" =>
+                    BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64BigEndian(slice)),
+                "bool" or "boolean" => slice[^1] != 0 ? 1d : 0d,
                 _ => double.NaN
             };
         }
@@ -77,7 +78,7 @@ public sealed class DeyeModbusRegisterDefinition
             return false;
         }
 
-        if (double.IsNaN(value))
+        if (double.IsNaN(value) || double.IsInfinity(value))
         {
             return false;
         }
