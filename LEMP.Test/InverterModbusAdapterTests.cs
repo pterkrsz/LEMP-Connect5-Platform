@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -163,7 +164,8 @@ public class InverterModbusAdapterTests
         var baseValue = scaledValue / scale;
         var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
 
-        return normalizedType switch
+        var valueString = normalizedType switch
+
         {
             "int16" => ((short)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
             "uint16" => ((ushort)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
@@ -174,5 +176,92 @@ public class InverterModbusAdapterTests
             "bool" or "boolean" => Math.Abs(baseValue) > 0.5 ? "true" : "false",
             _ => baseValue.ToString("G15", CultureInfo.InvariantCulture)
         };
+
+
+        if (definition.ByteLength <= 0)
+        {
+            return valueString;
+        }
+
+        Span<byte> buffer = definition.ByteLength <= 32 ? stackalloc byte[definition.ByteLength] : new byte[definition.ByteLength];
+        buffer.Clear();
+
+        if (!TryEncodeRawBytes(normalizedType, baseValue, buffer))
+        {
+            return valueString;
+        }
+
+        var hexBytes = string.Join(" ", buffer.ToArray().Select(b => $"0x{b:X2}"));
+        return $"{valueString} [{hexBytes}]";
+    }
+
+    private static bool TryEncodeRawBytes(string? normalizedType, double baseValue, Span<byte> destination)
+    {
+        try
+        {
+            switch (normalizedType)
+            {
+                case "uint16":
+                    if (destination.Length < 2)
+                    {
+                        return false;
+                    }
+
+                    BinaryPrimitives.WriteUInt16BigEndian(destination, checked((ushort)Math.Round(baseValue, MidpointRounding.AwayFromZero)));
+                    return true;
+                case "int16":
+                    if (destination.Length < 2)
+                    {
+                        return false;
+                    }
+
+                    BinaryPrimitives.WriteInt16BigEndian(destination, checked((short)Math.Round(baseValue, MidpointRounding.AwayFromZero)));
+                    return true;
+                case "uint32":
+                    if (destination.Length < 4)
+                    {
+                        return false;
+                    }
+
+                    BinaryPrimitives.WriteUInt32BigEndian(destination, checked((uint)Math.Round(baseValue, MidpointRounding.AwayFromZero)));
+                    return true;
+                case "int32":
+                    if (destination.Length < 4)
+                    {
+                        return false;
+                    }
+
+                    BinaryPrimitives.WriteInt32BigEndian(destination, checked((int)Math.Round(baseValue, MidpointRounding.AwayFromZero)));
+                    return true;
+                case "single" or "float" or "float32":
+                    if (destination.Length < 4)
+                    {
+                        return false;
+                    }
+
+                    var floatBits = BitConverter.SingleToInt32Bits((float)baseValue);
+                    BinaryPrimitives.WriteInt32BigEndian(destination, floatBits);
+                    return true;
+                case "double" or "float64":
+                    if (destination.Length < 8)
+                    {
+                        return false;
+                    }
+
+                    var doubleBits = BitConverter.DoubleToInt64Bits(baseValue);
+                    BinaryPrimitives.WriteInt64BigEndian(destination, doubleBits);
+                    return true;
+                case "bool" or "boolean":
+                    destination[destination.Length - 1] = Math.Abs(baseValue) > 0.5 ? (byte)1 : (byte)0;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
     }
 }
