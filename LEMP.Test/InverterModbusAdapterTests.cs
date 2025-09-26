@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
@@ -29,6 +30,14 @@ public class InverterModbusAdapterTests
 
         Assert.That(snapshot.InverterAlive, Is.True, "Minden Modbus lekérdezésnek sikeresnek kell lennie.");
         Assert.That(snapshot.Groups, Is.Not.Empty, "A lekérdezett csoportok listája nem lehet üres.");
+
+        var definitionsByGroup = groups.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value
+                .Where(def => !string.IsNullOrWhiteSpace(def.Name))
+                .GroupBy(def => def.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
 
         var expectedNamesByGroup = groups.ToDictionary(
             kvp => kvp.Key,
@@ -65,7 +74,26 @@ public class InverterModbusAdapterTests
             foreach (var register in group.Value
                          .OrderBy(r => r.Key, StringComparer.OrdinalIgnoreCase))
             {
-                TestContext.WriteLine($"    {register.Key}: {register.Value}");
+
+                if (definitionsByGroup.TryGetValue(group.Key, out var definitions) &&
+                    definitions.TryGetValue(register.Key, out var definition))
+                {
+                    var formattedValue = register.Value.ToString(CultureInfo.InvariantCulture);
+                    var unit = definition.Unit;
+                    var prefix = string.IsNullOrWhiteSpace(unit) || unit.Equals("null", StringComparison.OrdinalIgnoreCase)
+                        ? string.Empty
+                        : $" {unit}";
+                    var scaleSuffix = Math.Abs(definition.Scale - 1d) > double.Epsilon
+                        ? $" (scale: {definition.Scale.ToString("G15", CultureInfo.InvariantCulture)})"
+                        : string.Empty;
+
+                    TestContext.WriteLine($"    {register.Key}: {formattedValue}{prefix}{scaleSuffix}");
+                }
+                else
+                {
+                    TestContext.WriteLine($"    {register.Key}: {register.Value.ToString(CultureInfo.InvariantCulture)}");
+                }
+
             }
         }
 
