@@ -78,7 +78,9 @@ public class InverterModbusAdapterTests
                 if (definitionsByGroup.TryGetValue(group.Key, out var definitions) &&
                     definitions.TryGetValue(register.Key, out var definition))
                 {
-                    var formattedValue = register.Value.ToString(CultureInfo.InvariantCulture);
+                    var scaledValue = register.Value * definition.Scale;
+                    var formattedValue = scaledValue.ToString(CultureInfo.InvariantCulture);
+
                     var unit = definition.Unit;
                     var prefix = string.IsNullOrWhiteSpace(unit) || unit.Equals("null", StringComparison.OrdinalIgnoreCase)
                         ? string.Empty
