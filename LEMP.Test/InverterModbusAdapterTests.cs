@@ -151,9 +151,8 @@ public class InverterModbusAdapterTests
 
         return normalizedType switch
         {
-            "bool" or "boolean" => Math.Abs(value) > 0.5 ? "true" : "false",
-            "single" or "float" or "float32" => ((float)value).ToString("G9", CultureInfo.InvariantCulture),
-            "double" or "float64" => value.ToString("G17", CultureInfo.InvariantCulture),
+            "int16" or "int32" => Math.Round(value, MidpointRounding.AwayFromZero)
+                .ToString(CultureInfo.InvariantCulture),
             _ => value.ToString("G15", CultureInfo.InvariantCulture)
         };
     }
@@ -171,9 +170,6 @@ public class InverterModbusAdapterTests
             "uint16" => ((ushort)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
             "int32" => ((int)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
             "uint32" => ((uint)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
-            "single" or "float" or "float32" => ((float)baseValue).ToString("G9", CultureInfo.InvariantCulture),
-            "double" or "float64" => baseValue.ToString("G17", CultureInfo.InvariantCulture),
-            "bool" or "boolean" => Math.Abs(baseValue) > 0.5 ? "true" : "false",
             _ => baseValue.ToString("G15", CultureInfo.InvariantCulture)
         };
 
@@ -232,27 +228,6 @@ public class InverterModbusAdapterTests
                     }
 
                     BinaryPrimitives.WriteInt32BigEndian(destination, checked((int)Math.Round(baseValue, MidpointRounding.AwayFromZero)));
-                    return true;
-                case "single" or "float" or "float32":
-                    if (destination.Length < 4)
-                    {
-                        return false;
-                    }
-
-                    var floatBits = BitConverter.SingleToInt32Bits((float)baseValue);
-                    BinaryPrimitives.WriteInt32BigEndian(destination, floatBits);
-                    return true;
-                case "double" or "float64":
-                    if (destination.Length < 8)
-                    {
-                        return false;
-                    }
-
-                    var doubleBits = BitConverter.DoubleToInt64Bits(baseValue);
-                    BinaryPrimitives.WriteInt64BigEndian(destination, doubleBits);
-                    return true;
-                case "bool" or "boolean":
-                    destination[destination.Length - 1] = Math.Abs(baseValue) > 0.5 ? (byte)1 : (byte)0;
                     return true;
                 default:
                     return false;
