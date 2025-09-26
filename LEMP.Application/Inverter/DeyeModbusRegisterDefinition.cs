@@ -63,7 +63,9 @@ public sealed class DeyeModbusRegisterDefinition
 
         if (!TryReadRawValue(slice, out var rawValue))
         {
+
             return false;
+
         }
 
         value = rawValue * Scale;
@@ -110,6 +112,7 @@ public sealed class DeyeModbusRegisterDefinition
         return true;
     }
 
+
     private bool TryReadUInt32(ReadOnlySpan<byte> data, out double rawValue)
     {
         rawValue = 0d;
@@ -130,15 +133,18 @@ public sealed class DeyeModbusRegisterDefinition
         rawValue = 0d;
 
         if (Length != 2 || data.Length < 4)
+
         {
             return false;
         }
+
 
         var highWord = BinaryPrimitives.ReadUInt16BigEndian(data);
         var lowWord = BinaryPrimitives.ReadUInt16BigEndian(data[2..]);
         var combined = ((uint)highWord << 16) | lowWord;
         rawValue = unchecked((int)combined);
         return true;
+
     }
 
     private static DeyeModbusDataType ParseDataType(string raw)
