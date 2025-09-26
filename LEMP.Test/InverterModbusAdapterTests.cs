@@ -55,6 +55,20 @@ public class InverterModbusAdapterTests
         var totalActual = snapshot.Groups.Values.Sum(v => v.Count);
         Assert.That(totalActual, Is.EqualTo(totalExpected), "Minden aktív regiszterértéket vissza kell adni.");
 
+        TestContext.WriteLine("Olvasott inverter Modbus értékek:");
+
+        foreach (var group in snapshot.Groups
+                     .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            TestContext.WriteLine($"  Csoport: {group.Key}");
+
+            foreach (var register in group.Value
+                         .OrderBy(r => r.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                TestContext.WriteLine($"    {register.Key}: {register.Value}");
+            }
+        }
+
         var planField = typeof(InverterModbusAdapter).GetField("_plan", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.That(planField, Is.Not.Null, "Nem sikerült elérni az olvasási tervet reflexióval.");
 
