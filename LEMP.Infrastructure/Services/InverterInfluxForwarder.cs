@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using LEMP.Domain.Inverter;
@@ -229,7 +230,7 @@ public class InverterInfluxForwarder : BackgroundService
         return (scaled, rawValue);
     }
 
-    private static IReadOnlyList<DeyeRegisterDefinition> LoadRegisterDefinitions(string jsonPath)
+    private IReadOnlyList<DeyeRegisterDefinition> LoadRegisterDefinitions(string jsonPath)
     {
         if (!File.Exists(jsonPath))
         {
@@ -246,6 +247,8 @@ public class InverterInfluxForwarder : BackgroundService
 
         var rows = JsonSerializer.Deserialize<List<DeyeJsonRow>>(json, options) ?? new List<DeyeJsonRow>();
         var regs = new List<DeyeRegisterDefinition>();
+        var loggedSampleDataType = false;
+        var loggedMultiWord = false;
 
         foreach (var row in rows)
         {
@@ -285,6 +288,26 @@ public class InverterInfluxForwarder : BackgroundService
             if (string.IsNullOrEmpty(group) || string.IsNullOrEmpty(name))
             {
                 continue;
+            }
+
+            if (!loggedSampleDataType)
+            {
+                _logger.LogDebug(
+                    "Parsed inverter register data type {Raw} -> {Normalized} for {Name}",
+                    row.DataType,
+                    normalizedType,
+                    name);
+                loggedSampleDataType = true;
+            }
+
+            if (!loggedMultiWord && wordLength > 1)
+            {
+                _logger.LogDebug(
+                    "Register {Name} spans {WordLength} words ({DataType})",
+                    name,
+                    wordLength,
+                    normalizedType);
+                loggedMultiWord = true;
             }
 
             regs.Add(new DeyeRegisterDefinition(
@@ -527,6 +550,7 @@ public class InverterInfluxForwarder : BackgroundService
         public string? ReadAddress { get; set; }
         public string? Length { get; set; }
         public string? Name { get; set; }
+        [JsonPropertyName("DateType")]
         public string? DataType { get; set; }
         public string? Factor { get; set; }
         public string? Unit { get; set; }
