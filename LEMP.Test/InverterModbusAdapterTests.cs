@@ -74,10 +74,12 @@ public class InverterModbusAdapterTests
             foreach (var register in group.Value
                          .OrderBy(r => r.Key, StringComparer.OrdinalIgnoreCase))
             {
+
                 if (definitionsByGroup.TryGetValue(group.Key, out var definitions) &&
                     definitions.TryGetValue(register.Key, out var definition))
                 {
                     var scaledValue = FormatScaledValue(register.Value, definition);
+
                     var unit = definition.Unit;
                     var prefix = string.IsNullOrWhiteSpace(unit) || unit.Equals("null", StringComparison.OrdinalIgnoreCase)
                         ? string.Empty
@@ -85,6 +87,7 @@ public class InverterModbusAdapterTests
                     var scaleSuffix = Math.Abs(definition.Scale - 1d) > double.Epsilon
                         ? $" (scale: {definition.Scale.ToString("G15", CultureInfo.InvariantCulture)})"
                         : string.Empty;
+
                     var rawValue = FormatRawValue(register.Value, definition);
                     var typeSuffix = string.IsNullOrWhiteSpace(definition.DataType)
                         ? string.Empty
@@ -94,11 +97,13 @@ public class InverterModbusAdapterTests
                         : string.Empty;
 
                     TestContext.WriteLine($"    {register.Key}: {scaledValue}{prefix}{scaleSuffix} (raw: {rawValue}{typeSuffix}{lengthSuffix})");
+
                 }
                 else
                 {
                     TestContext.WriteLine($"    {register.Key}: {register.Value.ToString(CultureInfo.InvariantCulture)}");
                 }
+
             }
         }
 
