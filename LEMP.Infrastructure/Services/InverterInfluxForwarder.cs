@@ -226,20 +226,16 @@ public class InverterInfluxForwarder : BackgroundService
             bool first = true;
             foreach (var field in group.Value.OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase))
             {
-                if (double.IsNaN(field.Value) || double.IsInfinity(field.Value))
+                var registerValue = field.Value;
+                if (!TryAppendField(sb, ref first, field.Key, registerValue.Value, inv))
                 {
                     continue;
                 }
 
-                if (!first)
+                if (!double.IsNaN(registerValue.RawValue) && !double.IsInfinity(registerValue.RawValue))
                 {
-                    sb.Append(',');
+                    TryAppendField(sb, ref first, $"raw_{field.Key}", registerValue.RawValue, inv);
                 }
-
-                sb.Append(EscapeFieldKey(field.Key));
-                sb.Append('=');
-                sb.Append(field.Value.ToString(inv));
-                first = false;
             }
 
             if (first)
@@ -279,6 +275,25 @@ public class InverterInfluxForwarder : BackgroundService
 
         var result = sb.ToString().Trim('_');
         return string.IsNullOrEmpty(result) ? "value" : result;
+    }
+
+    private static bool TryAppendField(StringBuilder sb, ref bool first, string fieldName, double value, CultureInfo inv)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value))
+        {
+            return false;
+        }
+
+        if (!first)
+        {
+            sb.Append(',');
+        }
+
+        sb.Append(EscapeFieldKey(fieldName));
+        sb.Append('=');
+        sb.Append(value.ToString(inv));
+        first = false;
+        return true;
     }
 
     private static string ResolvePath(string path) =>
