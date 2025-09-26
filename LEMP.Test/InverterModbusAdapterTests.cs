@@ -78,8 +78,7 @@ public class InverterModbusAdapterTests
                 if (definitionsByGroup.TryGetValue(group.Key, out var definitions) &&
                     definitions.TryGetValue(register.Key, out var definition))
                 {
-                    var scaledValue = register.Value * definition.Scale;
-                    var formattedValue = scaledValue.ToString(CultureInfo.InvariantCulture);
+                    var scaledValue = FormatScaledValue(register.Value, definition);
 
                     var unit = definition.Unit;
                     var prefix = string.IsNullOrWhiteSpace(unit) || unit.Equals("null", StringComparison.OrdinalIgnoreCase)
@@ -89,7 +88,16 @@ public class InverterModbusAdapterTests
                         ? $" (scale: {definition.Scale.ToString("G15", CultureInfo.InvariantCulture)})"
                         : string.Empty;
 
-                    TestContext.WriteLine($"    {register.Key}: {formattedValue}{prefix}{scaleSuffix}");
+                    var rawValue = FormatRawValue(register.Value, definition);
+                    var typeSuffix = string.IsNullOrWhiteSpace(definition.DataType)
+                        ? string.Empty
+                        : $", type: {definition.DataType}";
+                    var lengthSuffix = definition.Length > 0
+                        ? $", words: {definition.Length}"
+                        : string.Empty;
+
+                    TestContext.WriteLine($"    {register.Key}: {scaledValue}{prefix}{scaleSuffix} (raw: {rawValue}{typeSuffix}{lengthSuffix})");
+
                 }
                 else
                 {
@@ -134,5 +142,37 @@ public class InverterModbusAdapterTests
             Requests.Add((functionCode, startAddress, registerCount));
             return true;
         }
+    }
+
+    private static string FormatScaledValue(double value, DeyeModbusRegisterDefinition definition)
+    {
+        var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
+
+        return normalizedType switch
+        {
+            "bool" or "boolean" => Math.Abs(value) > 0.5 ? "true" : "false",
+            "single" or "float" or "float32" => ((float)value).ToString("G9", CultureInfo.InvariantCulture),
+            "double" or "float64" => value.ToString("G17", CultureInfo.InvariantCulture),
+            _ => value.ToString("G15", CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static string FormatRawValue(double scaledValue, DeyeModbusRegisterDefinition definition)
+    {
+        var scale = Math.Abs(definition.Scale) > double.Epsilon ? definition.Scale : 1d;
+        var baseValue = scaledValue / scale;
+        var normalizedType = definition.DataType?.Trim().ToLowerInvariant();
+
+        return normalizedType switch
+        {
+            "int16" => ((short)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "uint16" => ((ushort)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "int32" => ((int)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "uint32" => ((uint)Math.Round(baseValue, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture),
+            "single" or "float" or "float32" => ((float)baseValue).ToString("G9", CultureInfo.InvariantCulture),
+            "double" or "float64" => baseValue.ToString("G17", CultureInfo.InvariantCulture),
+            "bool" or "boolean" => Math.Abs(baseValue) > 0.5 ? "true" : "false",
+            _ => baseValue.ToString("G15", CultureInfo.InvariantCulture)
+        };
     }
 }
