@@ -1,13 +1,13 @@
 using System;
 using System.Globalization;
-using System.Net.Http;
+using System.IO;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using LEMP.Application.Modbus;
 using LEMP.Application.SmartMeter;
 using LEMP.Domain.SmartMeter;
-using LEMP.Application.Modbus;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -21,6 +21,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
     private readonly ILogger<SmartMeterInfluxForwarder> _logger;
     private readonly string _serialPort;
     private readonly int _pollingIntervalSeconds;
+    private readonly string _mapPath;
 
     public SmartMeterInfluxForwarder(
         IHttpClientFactory factory,
@@ -30,16 +31,20 @@ public class SmartMeterInfluxForwarder : BackgroundService
         _factory = factory;
         _configuration = configuration;
         _logger = logger;
-        _serialPort = _configuration["SmartMeter:SerialPort"]
+        var smartMeterSection = _configuration.GetRequiredSection("SmartMeter");
+        _serialPort = smartMeterSection["SerialPort"]
                      ?? throw new InvalidOperationException("SmartMeter:SerialPort is not configured");
-        _pollingIntervalSeconds = _configuration.GetValue<int?>("SmartMeter:PollingIntervalSeconds")
+        _pollingIntervalSeconds = smartMeterSection.GetValue<int?>("PollingIntervalSeconds")
                                   ?? throw new InvalidOperationException("SmartMeter:PollingIntervalSeconds is not configured");
+        var mapFile = smartMeterSection["MapFile"]
+                      ?? throw new InvalidOperationException("SmartMeter:MapFile is not configured");
+        _mapPath = ResolvePath(mapFile);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         ModbusRTUReader reader = new(_serialPort);
-        var adapter = new SmartMeterAdapter(reader);
+        var adapter = new SmartMeterAdapter(reader, _mapPath);
 
         var client = _factory.CreateClient("Influx");
         var token = _configuration["InfluxDB:Token"];
@@ -88,7 +93,7 @@ public class SmartMeterInfluxForwarder : BackgroundService
                         {
                             reader.Dispose();
                             reader = new ModbusRTUReader(_serialPort);
-                            adapter = new SmartMeterAdapter(reader);
+                            adapter = new SmartMeterAdapter(reader, _mapPath);
                             _logger.LogInformation("Smart meter connection re-established");
                         }
                         catch (Exception reconnectionException)
@@ -138,6 +143,9 @@ public class SmartMeterInfluxForwarder : BackgroundService
 
         return sb.ToString();
     }
+
+    private static string ResolvePath(string path) =>
+        Path.IsPathRooted(path) ? path : Path.Combine(AppContext.BaseDirectory, path);
 
     private static string BuildWriteUrl(string bucket, string? org)
     {
