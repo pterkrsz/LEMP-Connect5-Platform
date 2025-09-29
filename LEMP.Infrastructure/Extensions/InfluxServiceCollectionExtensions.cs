@@ -22,7 +22,7 @@ namespace LEMP.Infrastructure.Extensions
                         ?? throw new InvalidOperationException("InfluxDB:Bucket is not configured");
 
             var url = new UriBuilder("http", host, port).ToString();
-            services.AddSingleton(_ => new InfluxDBClient(url, token: token, database: bucket));
+            services.AddSingleton(_ => new InfluxDBClient(url, token ?? string.Empty, database: bucket));
             return services;
         }
 
