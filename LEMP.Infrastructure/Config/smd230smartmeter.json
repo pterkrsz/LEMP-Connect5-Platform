@@ -1,0 +1,134 @@
+[
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "0",
+    "Length": "2",
+    "Name": "VoltageLineToNeutral",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "V",
+    "Description": "Phase voltage measured between line and neutral."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "6",
+    "Length": "2",
+    "Name": "Current",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "A",
+    "Description": "Current drawn on the measured phase."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "12",
+    "Length": "2",
+    "Name": "ActivePower",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "W",
+    "Description": "Instantaneous active power."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "18",
+    "Length": "2",
+    "Name": "ApparentPower",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "VA",
+    "Description": "Instantaneous apparent power."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "24",
+    "Length": "2",
+    "Name": "ReactivePower",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "var",
+    "Description": "Instantaneous reactive power."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "30",
+    "Length": "2",
+    "Name": "PowerFactor",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "",
+    "Description": "Power factor of the measured phase."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "70",
+    "Length": "2",
+    "Name": "Frequency",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "Hz",
+    "Description": "Measured grid frequency."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "72",
+    "Length": "2",
+    "Name": "ImportedActiveEnergy",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "kWh",
+    "Description": "Cumulative imported active energy."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "74",
+    "Length": "2",
+    "Name": "ExportedActiveEnergy",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "kWh",
+    "Description": "Cumulative exported active energy."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "76",
+    "Length": "2",
+    "Name": "ImportedReactiveEnergy",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "kvarh",
+    "Description": "Cumulative imported reactive energy."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "78",
+    "Length": "2",
+    "Name": "ExportedReactiveEnergy",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "kvarh",
+    "Description": "Cumulative exported reactive energy."
+  },
+  {
+    "Active": "true",
+    "ReadFunctionCode": "4",
+    "ReadAddress": "342",
+    "Length": "2",
+    "Name": "TotalActiveEnergy",
+    "DataType": "float32",
+    "Factor": "1",
+    "Unit": "kWh",
+    "Description": "Total cumulative active energy."
+  }
+]
