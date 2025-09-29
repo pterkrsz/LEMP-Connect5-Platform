@@ -39,13 +39,7 @@ public class ModbusRTUReaderTests
             StartAddress = 0,
             RegisterCount = 10
         };
-        var frame = InvokePrivate<byte[]>("BuildFrame", new object?[]
-        {
-            request.SlaveId,
-            request.FunctionCode,
-            request.StartAddress,
-            request.RegisterCount
-        });
+        var frame = InvokePrivate<byte[]>("BuildFrame", new object?[] { request }, typeof(ushort));
         Assert.That(frame[0], Is.EqualTo(request.SlaveId));
         Assert.That(frame[1], Is.EqualTo(request.FunctionCode));
         Assert.That(frame[2], Is.EqualTo(0));

@@ -17,14 +17,6 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
-    <PackageReference Include="NModbus" Version="3.0.14" />
-    <PackageReference Include="NModbus.Serial" Version="3.0.14" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Config/deyemodbus.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>
